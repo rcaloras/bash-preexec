@@ -47,7 +47,11 @@ precmd_invoke_cmd() {
     # For every function defined in our function array. Invoke it.
     local precmd_function
     for precmd_function in ${precmd_functions[@]}; do
-        $precmd_function
+
+        # Only execute this function if it actually exists.
+        if [[ -n $(type -t $precmd_function) ]]; then
+            $precmd_function
+        fi
     done
     preexec_interactive_mode="on";
 }
@@ -110,7 +114,11 @@ preexec_invoke_exec() {
     # For every function defined in our function array. Invoke it.
     local preexec_function
     for preexec_function in "${preexec_functions[@]}"; do
-        $preexec_function "$this_command"
+
+        # Only execute each function if it actually exists.
+        if [[ -n $(type -t $preexec_function) ]]; then
+            $preexec_function "$this_command"
+        fi
     done
 }
 
