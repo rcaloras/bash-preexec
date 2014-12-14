@@ -7,21 +7,23 @@
 # function is executed before each prompt is displayed.
 #
 # Author: Ryan Caloras (ryan@bashhub.com)
-# Original Author: Glyph Lefkowitz
+# Forked from Original Author: Glyph Lefkowitz
 #
 # General Usage:
 #
 #  1. Source this file at the end of your bash profile so as not to interfere
 #     with anything else that's using PROMPT_COMMAND.
 #
-#  2. Add any precmd or preexec functions by appending them to their arrays:
+#  2. Invoke 'preexec_and_precmd_install' after the file has been sourced.
+#
+#  3. Add any precmd or preexec functions by appending them to their arrays:
 #       e.g.
 #       precmd_functions+=(my_precmd_function)
 #       precmd_functions+=(some_other_precmd_function)
 #
 #       preexec_functions+=(my_preexec_function)
 #
-#  3. If you have anything that's using the Debug Trap, change it to use
+#  4. If you have anything that's using the Debug Trap, change it to use
 #     preexec. (Optional) change anything using PROMPT_COMMAND to now use
 #     precmd instead.
 #
@@ -139,6 +141,3 @@ preexec_and_precmd_install() {
     PROMPT_COMMAND="${existing_prompt_command} precmd_invoke_cmd";
     trap 'preexec_invoke_exec' DEBUG;
 }
-
-# Install our trap and define PROMPT_COMMAND.
-preexec_and_precmd_install
