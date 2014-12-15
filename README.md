@@ -40,7 +40,7 @@ You can run tests using https://github.com/sstephenson/bats.
 bats test
 ```
 Should output something like:
-```bash
+```
 elementz@Kashmir:~/git/bash-preexec(master)$ bats test
  ✓ No functions defined for preexec should simply return
  ✓ precmd should execute a function once
