@@ -34,9 +34,17 @@ precmd_hello_two() { echo "This is invoked on precmd second"; }
 precmd_functions+=(precmd_hello_one)
 precmd_functions+=(precmd_hello_two)
 ```
-
-
-
-
-
-
+###Tests
+You can run tests using https://github.com/sstephenson/bats.
+```bash
+bats test
+```
+Should output something like:
+```bash
+elementz@Kashmir:~/git/bash-preexec(master)$ bats test
+ ✓ No functions defined for preexec should simply return
+ ✓ precmd should execute a function once
+ ✓ preexec should execute a function with the last command in our history
+ ✓ preexec should execute multiple functions in the order added to their arrays
+ ✓ preecmd should execute multiple functions in the order added to their arrays
+```
