@@ -127,6 +127,16 @@ preexec_invoke_exec() {
 # Execute this to set up preexec and precmd execution.
 preexec_and_precmd_install() {
 
+    # Make sure this is bash that's running this and return otherwise.
+    if [ -z "$BASH_VERSION" ]; then
+        return 1;
+    fi
+
+    # Exit if we already have this installed.
+    if [[ "$PROMPT_COMMAND" == *"precmd_invoke_cmd"* ]]; then
+        return 1;
+    fi
+
     # Take our existing prompt command and append a semicolon to it
     # if it doesn't already have one.
     local existing_prompt_command

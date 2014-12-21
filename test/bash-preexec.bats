@@ -12,6 +12,20 @@ test_preexec_echo() {
   echo "$1"
 }
 
+@test "prexec_and_precmd_install should exit with 1 if we're not using bash" {
+  unset BASH_VERSION
+  run 'preexec_and_precmd_install'
+  [[ $status == 1 ]]
+  [[ -z "$output" ]]
+}
+
+@test "prexec_and_precmd_install should exit if it's already installed" {
+  PROMPT_COMMAND="some_other_function; precmd_invoke_cmd;"
+  run 'preexec_and_precmd_install'
+  [[ $status == 1 ]]
+  [[ -z "$output" ]]
+}
+
 @test "No functions defined for preexec should simply return" {
     run 'preexec_invoke_exec'
     [[ $status == 0 ]]
