@@ -87,8 +87,10 @@ preexec_invoke_exec() {
         fi
     fi
 
-    if [[ "precmd_invoke_cmd" == "$BASH_COMMAND" ]]
-    then
+    # Should replace this with a way to check if it's a part of
+    # PROMPT_COMMAND somehow.
+    if [[ "precmd_invoke_cmd" == "$BASH_COMMAND" ]] ||
+       [[ "update_terminal_cwd" == "$BASH_COMMAND" ]]; then
         # Sadly, there's no cleaner way to detect two prompts being displayed
         # one after another.  This makes it important that PROMPT_COMMAND
         # remain set _exactly_ as below in preexec_install.  Let's switch back
