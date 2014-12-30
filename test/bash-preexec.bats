@@ -76,18 +76,24 @@ test_preexec_echo() {
     [[ "${lines[1]}" == "two" ]]
 }
 
-@test "preexec should not execute if our command is in our PROMPT_COMMAND" {
-    something() { echo "$1 one"; }
-    preexec_functions+=(something)
-    preexec_interactive_mode="on"
-    history -s "fake command"
+@test "in_prompt_command should detect if a command is part of PROMPT_COMMAND" {
 
-    BASH_COMMAND="precmd_invoke_cmd"
-    PROMPT_COMMAND="precmd_invoke_cmd;something;"
-    run 'preexec_invoke_exec'
+    PROMPT_COMMAND="precmd_invoke_cmd; something;"
+    run '__bh_in_prompt_command' "something"
     [[ $status == 0 ]]
-    echo "$output"
-    [[ -z "$output" ]]
+
+    run '__bh_in_prompt_command' "something_else"
+    [[ $status == 1 ]]
+
+    # Should trim commands and arguments here.
+    PROMPT_COMMAND=" precmd_invoke_cmd ; something ; some_stuff_here;"
+    run '__bh_in_prompt_command' " precmd_invoke_cmd "
+    [[ $status == 0 ]]
+
+    PROMPT_COMMAND=" precmd_invoke_cmd ; something ; some_stuff_here;"
+    run '__bh_in_prompt_command' " not_found"
+    [[ $status == 1 ]]
+
 }
 
 

@@ -39,6 +39,13 @@
 # and unset as soon as the trace hook is run.
 preexec_interactive_mode=""
 
+__bh_trim_whitespace() {
+    local var=$@
+    var="${var#"${var%%[![:space:]]*}"}"   # remove leading whitespace characters
+    var="${var%"${var##*[![:space:]]}"}"   # remove trailing whitespace characters
+    echo -n "$var"
+}
+
 # This function is installed as the PROMPT_COMMAND; it is invoked before each
 # interactive prompt display.  It sets a variable to indicate that the prompt
 # was just displayed, to allow the DEBUG trap to know that the next
@@ -56,6 +63,27 @@ precmd_invoke_cmd() {
         fi
     done
     preexec_interactive_mode="on";
+}
+
+
+__bh_in_prompt_command() {
+
+    local prompt_command_array
+    IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
+
+    local prompt_command_function
+    for command in "${prompt_command_array[@]}"; do
+        local trimmed_command
+        local trimmed_arg
+        trimmed_command=$(__bh_trim_whitespace "$command")
+        trimmed_arg=$(__bh_trim_whitespace "$1")
+        # Only execute each function if it actually exists.
+        if [[ "$trimmed_command" == "$trimmed_arg" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 # This function is installed as the DEBUG trap.  It is invoked before each
@@ -87,13 +115,7 @@ preexec_invoke_exec() {
         fi
     fi
 
-    local prompt_command_array
-    IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
-
-    echo "${prompt_command_array[@]}"
-    echo "$BASH_COMMAND"
-    if contains_element "$BASH_COMMAND" $prompt_command_array; then
-
+    if  __bh_in_prompt_command "$BASH_COMMAND"; then
         # Sadly, there's no cleaner way to detect two prompts being displayed
         # one after another.  This makes it important that PROMPT_COMMAND
         # remain set _exactly_ as below in preexec_install.  Let's switch back
@@ -128,21 +150,6 @@ preexec_invoke_exec() {
         fi
     done
 }
-
-#
-# Checks if an element is present in an array.
-#
-# @param The element to check if present
-# @param the array to check in
-# @return 0 if present 1 otherwise
-#
-contains_element() {
-  local e
-  for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
-  return 1
-}
-
-
 
 # Execute this to set up preexec and precmd execution.
 preexec_and_precmd_install() {
