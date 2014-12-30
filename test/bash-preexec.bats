@@ -75,3 +75,19 @@ test_preexec_echo() {
     [[ "${lines[0]}" == "one" ]]
     [[ "${lines[1]}" == "two" ]]
 }
+
+@test "preexec should not execute if our command is in our PROMPT_COMMAND" {
+    something() { echo "$1 one"; }
+    preexec_functions+=(something)
+    preexec_interactive_mode="on"
+    history -s "fake command"
+
+    BASH_COMMAND="precmd_invoke_cmd"
+    PROMPT_COMMAND="precmd_invoke_cmd;something;"
+    run 'preexec_invoke_exec'
+    [[ $status == 0 ]]
+    echo "$output"
+    [[ -z "$output" ]]
+}
+
+

@@ -87,10 +87,13 @@ preexec_invoke_exec() {
         fi
     fi
 
-    # Should replace this with a way to check if it's a part of
-    # PROMPT_COMMAND somehow.
-    if [[ "precmd_invoke_cmd" == "$BASH_COMMAND" ]] ||
-       [[ "update_terminal_cwd" == "$BASH_COMMAND" ]]; then
+    local prompt_command_array
+    IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
+
+    echo "${prompt_command_array[@]}"
+    echo "$BASH_COMMAND"
+    if contains_element "$BASH_COMMAND" $prompt_command_array; then
+
         # Sadly, there's no cleaner way to detect two prompts being displayed
         # one after another.  This makes it important that PROMPT_COMMAND
         # remain set _exactly_ as below in preexec_install.  Let's switch back
@@ -125,6 +128,21 @@ preexec_invoke_exec() {
         fi
     done
 }
+
+#
+# Checks if an element is present in an array.
+#
+# @param The element to check if present
+# @param the array to check in
+# @return 0 if present 1 otherwise
+#
+contains_element() {
+  local e
+  for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
+  return 1
+}
+
+
 
 # Execute this to set up preexec and precmd execution.
 preexec_and_precmd_install() {
