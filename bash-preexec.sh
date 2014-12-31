@@ -14,16 +14,14 @@
 #  1. Source this file at the end of your bash profile so as not to interfere
 #     with anything else that's using PROMPT_COMMAND.
 #
-#  2. Invoke 'preexec_and_precmd_install' after the file has been sourced.
-#
-#  3. Add any precmd or preexec functions by appending them to their arrays:
+#  2. Add any precmd or preexec functions by appending them to their arrays:
 #       e.g.
 #       precmd_functions+=(my_precmd_function)
 #       precmd_functions+=(some_other_precmd_function)
 #
 #       preexec_functions+=(my_preexec_function)
 #
-#  4. If you have anything that's using the Debug Trap, change it to use
+#  3. If you have anything that's using the Debug Trap, change it to use
 #     preexec. (Optional) change anything using PROMPT_COMMAND to now use
 #     precmd instead.
 #
@@ -121,7 +119,9 @@ __bp_preexec_invoke_exec() {
             __bp_preexec_interactive_mode=""
         fi
     fi
-
+    echo "in here"
+    echo "bash_command=$BASH_COMMAND"
+    echo "subshell=$BASH_SUBSHELL"
     if  __bp_in_prompt_command "$BASH_COMMAND"; then
         # Sadly, there's no cleaner way to detect two prompts being displayed
         # one after another.  This makes it important that PROMPT_COMMAND
@@ -185,3 +185,8 @@ preexec_and_precmd_install() {
     PROMPT_COMMAND="${existing_prompt_command} __bp_precmd_invoke_cmd";
     trap '__bp_preexec_invoke_exec' DEBUG;
 }
+
+# Run our install so long as we're not delaying it.
+if [[ -z "$__bp_delay_install" ]]; then
+    preexec_and_precmd_install
+fi;
