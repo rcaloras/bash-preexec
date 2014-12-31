@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
+  __bp_delay_install="true"
   source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
 }
 

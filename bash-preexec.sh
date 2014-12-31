@@ -14,16 +14,14 @@
 #  1. Source this file at the end of your bash profile so as not to interfere
 #     with anything else that's using PROMPT_COMMAND.
 #
-#  2. Invoke 'preexec_and_precmd_install' after the file has been sourced.
-#
-#  3. Add any precmd or preexec functions by appending them to their arrays:
+#  2. Add any precmd or preexec functions by appending them to their arrays:
 #       e.g.
 #       precmd_functions+=(my_precmd_function)
 #       precmd_functions+=(some_other_precmd_function)
 #
 #       preexec_functions+=(my_preexec_function)
 #
-#  4. If you have anything that's using the Debug Trap, change it to use
+#  3. If you have anything that's using the Debug Trap, change it to use
 #     preexec. (Optional) change anything using PROMPT_COMMAND to now use
 #     precmd instead.
 #
@@ -78,12 +76,13 @@ __bp_in_prompt_command() {
     local prompt_command_array
     IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
 
+    local trimmed_arg
+    trimmed_arg=$(__bp_trim_whitespace "$1")
+
     local prompt_command_function
     for command in "${prompt_command_array[@]}"; do
         local trimmed_command
-        local trimmed_arg
         trimmed_command=$(__bp_trim_whitespace "$command")
-        trimmed_arg=$(__bp_trim_whitespace "$1")
         # Only execute each function if it actually exists.
         if [[ "$trimmed_command" == "$trimmed_arg" ]]; then
             return 0
@@ -185,3 +184,8 @@ preexec_and_precmd_install() {
     PROMPT_COMMAND="${existing_prompt_command} __bp_precmd_invoke_cmd";
     trap '__bp_preexec_invoke_exec' DEBUG;
 }
+
+# Run our install so long as we're not delaying it.
+if [[ -z "$__bp_delay_install" ]]; then
+    preexec_and_precmd_install
+fi;
