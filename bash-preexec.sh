@@ -67,21 +67,22 @@ __bp_precmd_invoke_cmd() {
             $precmd_function
         fi
     done
+
     __bp_preexec_interactive_mode="on";
 }
-
 
 __bp_in_prompt_command() {
 
     local prompt_command_array
     IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
 
+
+    local trimmed_arg
+    trimmed_arg=$(__bp_trim_whitespace "$1")
     local prompt_command_function
     for command in "${prompt_command_array[@]}"; do
         local trimmed_command
-        local trimmed_arg
         trimmed_command=$(__bp_trim_whitespace "$command")
-        trimmed_arg=$(__bp_trim_whitespace "$1")
         # Only execute each function if it actually exists.
         if [[ "$trimmed_command" == "$trimmed_arg" ]]; then
             return 0
@@ -96,13 +97,13 @@ __bp_in_prompt_command() {
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
-
     if [[ -n "$COMP_LINE" ]]
     then
         # We're in the middle of a completer.  This obviously can't be
         # an interactively issued command.
         return
     fi
+
     if [[ -z "$__bp_preexec_interactive_mode" ]]
     then
         # We're doing something related to displaying the prompt.  Let the
@@ -119,9 +120,7 @@ __bp_preexec_invoke_exec() {
             __bp_preexec_interactive_mode=""
         fi
     fi
-    echo "in here"
-    echo "bash_command=$BASH_COMMAND"
-    echo "subshell=$BASH_SUBSHELL"
+
     if  __bp_in_prompt_command "$BASH_COMMAND"; then
         # Sadly, there's no cleaner way to detect two prompts being displayed
         # one after another.  This makes it important that PROMPT_COMMAND
@@ -156,6 +155,8 @@ __bp_preexec_invoke_exec() {
             $preexec_function "$this_command"
         fi
     done
+
+    __bp_preexec_interactive_mode=""
 }
 
 # Execute this to set up preexec and precmd execution.
@@ -171,6 +172,15 @@ preexec_and_precmd_install() {
         return 1;
     fi
 
+    # *BOTH* of these options need to be set for the DEBUG trap to be invoked
+    # in ( ) subshells.  This smells like a bug in bash to me.  The null stackederr
+    # redirections are to quiet errors on bash2.05 (i.e. OSX's default shell)
+    # where the options can't be set, and it's impossible to inherit the trap
+    # into subshells.
+
+    set -o functrace > /dev/null 2>&1
+    shopt -s extdebug > /dev/null 2>&1
+
     # Take our existing prompt command and append a semicolon to it
     # if it doesn't already have one.
     local existing_prompt_command
@@ -182,7 +192,7 @@ preexec_and_precmd_install() {
     fi
 
     # Finally install our traps.
-    PROMPT_COMMAND="${existing_prompt_command} __bp_precmd_invoke_cmd";
+    PROMPT_COMMAND="__bp_precmd_invoke_cmd";
     trap '__bp_preexec_invoke_exec' DEBUG;
 }
 
