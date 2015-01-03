@@ -14,7 +14,27 @@ echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh' >> ~/.bashrc
 ```
 
 ##Usage
-You can now define functions and have them invoked by these hooks by appending them to two different arrays. Either **preexec_functions** or **precmd_functions** for their respective commands.
+Two functions **preexec** and **precmd** can now be defined and they'll be automatically invoked by bash-preexec if they exist.
+
+* `preexec` Executed just after a command has been read and is about to be executed. The string that the user typed is passed as the first argument.
+* `precmd` Executed just before each prompt. Equivalent to PROMPT_COMMAND, but more flexible and resilient.
+```bash
+source ~/.bash-preexec.sh
+preexec() { echo "just typed $1"; }
+precmd() { echo "printing the prompt"; }
+```
+Should output something like:
+```
+elementz@Kashmir:~/git/bash-preexec (master)$ ls
+just typed ls
+bash-preexec.sh  README.md  test
+printing the prompt
+```
+
+You can also define functions and have them invoked by these hooks by appending them to two different arrays. Both preexec and precmd functions are added to these by default and don't need to be added manually.
+* `$preexec_functions` Array of functions invoked by preexec.
+* `$precmd_functions` Array of functions invoked by precmd.
+
 ####preexec
 ```bash
 # Define some function to use preexec
@@ -34,6 +54,12 @@ precmd_hello_two() { echo "This is invoked on precmd second"; }
 precmd_functions+=(precmd_hello_one)
 precmd_functions+=(precmd_hello_two)
 ```
+You can check the functions set for each by echoing its contents.
+```bash
+echo ${preexec_functions[@]} 
+echo ${precmd_functions[@]} 
+```
+
 ###Tests
 You can run tests using https://github.com/sstephenson/bats.
 ```bash
