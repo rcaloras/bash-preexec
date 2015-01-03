@@ -183,6 +183,11 @@ preexec_and_precmd_install() {
     # Finally install our traps.
     PROMPT_COMMAND="${existing_prompt_command} __bp_precmd_invoke_cmd";
     trap '__bp_preexec_invoke_exec' DEBUG;
+
+    # Add two functions to our arrays for convenience
+    # of definition.
+    precmd_functions+=(precmd)
+    preexec_functions+=(preexec)
 }
 
 # Run our install so long as we're not delaying it.
