@@ -1,11 +1,22 @@
 Bash-Preexec
 ============
 
-Zsh style preexec and precmd functions for Bash.
+preexec and precmd hook functions for Bash in the style of Zsh. They aim to emulate the behavior as described for Zsh http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions.
 
-Usage as described for Zsh http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions
+
+##Quick Start
+```bash
+# Pull down our file from github and write it to our home directory as a hidden file.
+curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh > ~/.bash-preexec.sh
+# Source our file to bring it into our environment
+source ~/.bash-preexec.sh
+# Define a couple functions.
+preexec() { echo "just typed $1"; }
+precmd() { echo "printing the prompt"; }
+```
 
 ##Install
+You'll want to pull down the file and basically add it to your bash profile/configuration file i.e ~/.bashrc, ~/.profile, ~/.bash_profile, etc
 ```bash
 # Pull down our file from github and write it to our home directory as a hidden file.
 curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh > ~/.bash-preexec.sh
@@ -30,8 +41,8 @@ just typed ls
 bash-preexec.sh  README.md  test
 printing the prompt
 ```
-
-You can also define functions and have them invoked by these hooks by appending them to two different arrays. Both preexec and precmd functions are added to these by default and don't need to be added manually.
+#### Function Arrays
+You can also define functions to be invoked by appending them to two different arrays. This is great if you want to have many functions invoked for either hook. Both preexec and precmd functions are added to these by default and don't need to be added manually.
 * `$preexec_functions` Array of functions invoked by preexec.
 * `$precmd_functions` Array of functions invoked by precmd.
 
