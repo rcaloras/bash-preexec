@@ -71,7 +71,7 @@ echo ${preexec_functions[@]}
 echo ${precmd_functions[@]} 
 ```
 
-###Tests
+##Tests
 You can run tests using https://github.com/sstephenson/bats.
 ```bash
 bats test
