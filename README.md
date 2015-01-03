@@ -8,9 +8,9 @@ Usage as described for Zsh http://zsh.sourceforge.net/Doc/Release/Functions.html
 ##Install
 ```bash
 # Pull down our file from github and write it to our home directory as a hidden file.
-curl -o ~/.bash-preexec.sh https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh
+curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh > ~/.bash-preexec.sh
 # Source our file at the end of our bash profile (e.g. ~/.bashrc, ~/.profile, or ~/.bash_profile)
-echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh && preexec_and_precmd_install' >> ~/.bashrc
+echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh' >> ~/.bashrc
 ```
 
 ##Usage
