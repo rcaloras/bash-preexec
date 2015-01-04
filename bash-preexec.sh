@@ -97,6 +97,8 @@ __bp_in_prompt_command() {
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
+
+
     if [[ -n "$COMP_LINE" ]]
     then
         # We're in the middle of a completer.  This obviously can't be
@@ -133,6 +135,8 @@ __bp_preexec_invoke_exec() {
         __bp_preexec_interactive_mode=""
         return
     fi
+
+    echo "level=$BASH_SUBSHELL bash_command=$BASH_COMMAND prompt_command=$PROMPT_COMMAND"
 
     local hist_ent="$(history 1)";
     local this_command="$(echo "$hist_ent" | sed -e "s/^[ ]*[0-9]*[ ]*//g")";
