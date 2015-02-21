@@ -123,20 +123,14 @@ __bp_preexec_invoke_exec() {
     fi
 
     if  __bp_in_prompt_command "$BASH_COMMAND"; then
-        # Sadly, there's no cleaner way to detect two prompts being displayed
-        # one after another.  This makes it important that PROMPT_COMMAND
-        # remain set _exactly_ as below in preexec_install.  Let's switch back
-        # out of interactive mode and not trace any of the commands run in
-        # precmd.
+        # If we're executing something inside our prompt_command then we don't
+        # want to call preexec. Bash prior to 3.1 can't detect this at all :/
 
-        # Given their buggy interaction between BASH_COMMAND and debug traps,
-        # versions of bash prior to 3.1 can't detect this at all.
         __bp_preexec_interactive_mode=""
         return
     fi
 
-    local hist_ent="$(history 1)";
-    local this_command="$(echo "$hist_ent" | sed -e "s/^[ ]*[0-9]*[ ]*//g")";
+    local this_command="$(history 1 | sed -e "s/^[ ]*[0-9]*[ ]*//g")";
 
     # Sanity check to make sure we have something to invoke our function with.
     if [ -z "$this_command" ]; then
