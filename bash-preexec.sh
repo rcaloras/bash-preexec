@@ -153,7 +153,7 @@ __bp_preexec_invoke_exec() {
 }
 
 # Execute this to set up preexec and precmd execution.
-preexec_and_precmd_install() {
+__bp_preexec_and_precmd_install() {
 
     # Make sure this is bash that's running this and return otherwise.
     if [ -z "$BASH_VERSION" ]; then
@@ -187,5 +187,5 @@ preexec_and_precmd_install() {
 
 # Run our install so long as we're not delaying it.
 if [[ -z "$__bp_delay_install" ]]; then
-    preexec_and_precmd_install
+    __bp_preexec_and_precmd_install
 fi;
