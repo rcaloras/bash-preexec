@@ -59,18 +59,29 @@ __bp_trim_whitespace() {
 #
 # It will invoke any functions defined in the precmd_functions array.
 __bp_precmd_invoke_cmd() {
+
+    # Should be available to each precmd function, should it want it.
+    local ret_value="$?"
+
     # For every function defined in our function array. Invoke it.
     local precmd_function
     for precmd_function in ${precmd_functions[@]}; do
 
         # Only execute this function if it actually exists.
         if [[ -n $(type -t $precmd_function) ]]; then
+            __bp_set_ret_value $ret_value
             $precmd_function
         fi
     done
     __bp_preexec_interactive_mode="on";
 }
 
+# Sets a return value in $?. We may want to get access to the $? variable in our
+# precmd functions. This is available for instance in zsh. We can simulate it in bash
+# by setting the value here.
+__bp_set_ret_value() {
+    return $1
+}
 
 __bp_in_prompt_command() {
 
@@ -176,7 +187,7 @@ __bp_preexec_and_precmd_install() {
     fi
 
     # Finally install our traps.
-    PROMPT_COMMAND="${existing_prompt_command} __bp_precmd_invoke_cmd";
+    PROMPT_COMMAND="__bp_precmd_invoke_cmd; ${existing_prompt_command}"
     trap '__bp_preexec_invoke_exec' DEBUG;
 
     # Add two functions to our arrays for convenience

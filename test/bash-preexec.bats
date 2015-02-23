@@ -40,6 +40,23 @@ test_preexec_echo() {
     [[ "$output" == "test echo" ]]
 }
 
+@test "precmd should set $? to be the previous exit code" {
+    echo_exit_code() {
+      echo "$?"
+      return 0
+    }
+    precmd_functions+=(echo_exit_code)
+
+    __bp_set_ret_value() {
+      return 251
+    }
+
+    run '__bp_precmd_invoke_cmd'
+    [[ $status == 0 ]]
+    [[ "$output" == "251" ]]
+}
+
+
 @test "preexec should execute a function with the last command in our history" {
     preexec_functions+=(test_preexec_echo)
     __bp_preexec_interactive_mode="on"
