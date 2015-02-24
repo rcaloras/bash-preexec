@@ -3,6 +3,7 @@
 # bash-preexec.sh -- Bash support for ZSH-like 'preexec' and 'precmd' functions.
 # https://github.com/rcaloras/bash-preexec
 #
+#
 # 'preexec' functions are executed before each interactive command is
 # executed, with the interactive command as its argument.  The 'precmd'
 # function is executed before each prompt is displayed.
@@ -10,6 +11,9 @@
 # Author: Ryan Caloras (ryan@bashhub.com)
 # Forked from Original Author: Glyph Lefkowitz
 #
+# V0.2.0
+#
+
 # General Usage:
 #
 #  1. Source this file at the end of your bash profile so as not to interfere
@@ -26,17 +30,15 @@
 #     preexec. (Optional) change anything using PROMPT_COMMAND to now use
 #     precmd instead.
 #
-# Note: This module requires two bash features which you must not otherwise be
-# using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable.
-# prexec_and_precmd_install will override these and if you override one or
-# the other this will most likely break.
+#  Note: This module requires two bash features which you must not otherwise be
+#  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. prexec_and_precmd_install
+#  will override these and if you override one or the other this will most likely break.
 
 # Avoid duplicate inclusion
 if [[ "$__bp_imported" == "defined" ]]; then
     return 0
 fi
 __bp_imported="defined"
-
 
 # This variable describes whether we are currently in "interactive mode";
 # i.e. whether this shell has just executed a prompt and is waiting for user
