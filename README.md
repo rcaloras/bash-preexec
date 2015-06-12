@@ -1,10 +1,10 @@
 Bash-Preexec
 ============
 
-**preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior as described for Zsh http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions.
+**preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
 
 ### Bashhub
-This project is currently being used in production by https://github.com/rcaloras/bashhub-client. Hype!
+This project is currently being used in production by [Bashhub](https://github.com/rcaloras/bashhub-client). Hype!
 
 ##Quick Start
 ```bash
@@ -74,7 +74,7 @@ echo ${precmd_functions[@]}
 ```
 
 ##Tests
-You can run tests using https://github.com/sstephenson/bats.
+You can run tests using [Bats](https://github.com/sstephenson/bats).
 ```bash
 bats test
 ```
