@@ -69,8 +69,8 @@ precmd_functions+=(precmd_hello_two)
 ```
 You can check the functions set for each by echoing its contents.
 ```bash
-echo ${preexec_functions[@]} 
-echo ${precmd_functions[@]} 
+echo ${preexec_functions[@]}
+echo ${precmd_functions[@]}
 ```
 
 ##Tests
