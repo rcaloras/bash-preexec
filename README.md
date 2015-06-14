@@ -1,15 +1,15 @@
 Bash-Preexec
 ============
 
-**preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior as described for Zsh http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions.
+**preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
 
 ### Bashhub
-This project is currently being used in production by https://github.com/rcaloras/bashhub-client. Hype!
+This project is currently being used in production by [Bashhub](https://github.com/rcaloras/bashhub-client). Hype!
 
 ##Quick Start
 ```bash
-# Pull down our file from github and write it to our home directory as a hidden file.
-curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh > ~/.bash-preexec.sh
+# Pull down our file from GitHub and write it to our home directory as a hidden file.
+curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh -o ~/.bash-preexec.sh
 # Source our file to bring it into our environment
 source ~/.bash-preexec.sh
 # Define a couple functions.
@@ -20,8 +20,8 @@ precmd() { echo "printing the prompt"; }
 ##Install
 You'll want to pull down the file and add it to your bash profile/configuration (i.e ~/.bashrc, ~/.profile, ~/.bash_profile, etc). **It must be the last thing imported in your bash profile.**
 ```bash
-# Pull down our file from github and write it to our home directory as a hidden file.
-curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh > ~/.bash-preexec.sh
+# Pull down our file from GitHub and write it to our home directory as a hidden file.
+curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh -o ~/.bash-preexec.sh
 # Source our file at the end of our bash profile (e.g. ~/.bashrc, ~/.profile, or ~/.bash_profile)
 echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh' >> ~/.bashrc
 ```
@@ -69,12 +69,12 @@ precmd_functions+=(precmd_hello_two)
 ```
 You can check the functions set for each by echoing its contents.
 ```bash
-echo ${preexec_functions[@]} 
-echo ${precmd_functions[@]} 
+echo ${preexec_functions[@]}
+echo ${precmd_functions[@]}
 ```
 
 ##Tests
-You can run tests using https://github.com/sstephenson/bats.
+You can run tests using [Bats](https://github.com/sstephenson/bats).
 ```bash
 bats test
 ```
