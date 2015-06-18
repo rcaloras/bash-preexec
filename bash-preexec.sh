@@ -40,6 +40,13 @@ if [[ "$__bp_imported" == "defined" ]]; then
 fi
 __bp_imported="defined"
 
+
+# Remove ignorespace from HISTCONTROL so we can accurately
+# invoke preexec with a command from our history even if it
+# starts with a space.
+export HISTCONTROL="${HISTCONTROL//ignorespace}"
+
+
 # This variable describes whether we are currently in "interactive mode";
 # i.e. whether this shell has just executed a prompt and is waiting for user
 # input.  It documents whether the current command invoked by the trace hook is

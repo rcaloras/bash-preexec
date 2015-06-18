@@ -113,3 +113,10 @@ test_preexec_echo() {
     [[ $status == 1 ]]
 
 }
+
+@test "HISTCONTROL should remove ignorespace" {
+
+    HISTCONTROL="ignorespace:ignoredups:*"
+    HISTCONTROL="${HISTCONTROL//ignorespace}"
+    [[ "$HISTCONTROL" == ":ignoredups:*" ]]
+}
