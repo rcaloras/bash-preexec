@@ -41,11 +41,18 @@ fi
 __bp_imported="defined"
 
 
-# Remove ignorespace from HISTCONTROL so we can accurately
-# invoke preexec with a command from our history even if it
-# starts with a space.
-export HISTCONTROL="${HISTCONTROL//ignorespace}"
-
+# Remove ignorespace and or replace ignoreboth from HISTCONTROL
+# so we can accurately invoke preexec with a command from our
+# history even if it starts with a space.
+__bp_adjust_histcontrol() {
+    local histcontrol
+    histcontrol="${HISTCONTROL//ignorespace}"
+    # Replace ignoreboth with ignoredups
+    if [[ "$histcontrol" == *"ignoreboth"* ]]; then
+        histcontrol="ignoredups:${histcontrol//ignoreboth}"
+    fi;
+    export HISTCONTROL="$histcontrol"
+}
 
 # This variable describes whether we are currently in "interactive mode";
 # i.e. whether this shell has just executed a prompt and is waiting for user
@@ -187,6 +194,9 @@ __bp_preexec_and_precmd_install() {
     if [[ "$PROMPT_COMMAND" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1;
     fi
+
+    # Adjust our HISTCONTROL Variable if needed.
+    __bp_adjust_histcontrol
 
     # Take our existing prompt command and append a semicolon to it
     # if it doesn't already have one.

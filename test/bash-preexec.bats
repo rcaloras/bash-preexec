@@ -114,9 +114,22 @@ test_preexec_echo() {
 
 }
 
-@test "HISTCONTROL should remove ignorespace" {
+@test "__bp_adjust_histcontrol should remove ignorespace and ignoreboth" {
 
+    # Should remove ignorespace
     HISTCONTROL="ignorespace:ignoredups:*"
-    HISTCONTROL="${HISTCONTROL//ignorespace}"
+    __bp_adjust_histcontrol
     [[ "$HISTCONTROL" == ":ignoredups:*" ]]
+
+    # Should remove ignoreboth and replace it with ignoredups
+    HISTCONTROL="ignoreboth"
+    __bp_adjust_histcontrol
+    [[ "$HISTCONTROL" == "ignoredups:" ]]
+
+    # Handle a few inputs
+    HISTCONTROL="ignoreboth:ignorespace:some_thing_else"
+    __bp_adjust_histcontrol
+    echo "$HISTCONTROL"
+    [[ "$HISTCONTROL" == "ignoredups:::some_thing_else" ]]
+
 }
