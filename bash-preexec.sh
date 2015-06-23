@@ -160,7 +160,7 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
-    local this_command="$(history 1 | sed -e "s/^[ ]*[0-9]*[ ]*//g")";
+    local this_command="$(HISTTIMEFORMAT= history 1 | sed -e "s/^[ ]*[0-9]*[ ]*//g")";
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
