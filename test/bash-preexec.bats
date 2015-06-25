@@ -133,3 +133,15 @@ test_preexec_echo() {
     [[ "$HISTCONTROL" == "ignoredups:::some_thing_else" ]]
 
 }
+
+@test "preexec should respect HISTTIMEFORMAT" {
+    preexec_functions+=(test_preexec_echo)
+    __bp_preexec_interactive_mode="on"
+    git_command="git commit -a -m 'commiting some stuff'"
+    HISTTIMEFORMAT='%F %T '
+    history -s $git_command
+
+    run '__bp_preexec_invoke_exec'
+    [[ $status == 0 ]]
+    [[ "$output" == "$git_command" ]]
+}
