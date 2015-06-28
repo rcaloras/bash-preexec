@@ -123,47 +123,54 @@ __bp_in_prompt_command() {
     return 1
 }
 
+# Cleanest way to grab the current command.
+# BASH_COMMAND is useful but does not contain the history as typed.
+__bp_last_history_command() {
+    local command="$(HISTTIMEFORMAT= history 1 | sed -e "s/^[ ]*[0-9]*[ ]*//g")"
+    echo "$command"
+}
+
 # This function is installed as the DEBUG trap.  It is invoked before each
 # interactive prompt display.  Its purpose is to inspect the current
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
 
-    if [[ -n "$COMP_LINE" ]]
-    then
+    # Prevent new session with empty history from invoking preexec.
+    if [[ -z "$__bp_previous_command" ]]; then
+        __bp_previous_command="$(__bp_last_history_command)"
+    fi
+
+    if [[ -n "$COMP_LINE" ]]; then
         # We're in the middle of a completer.  This obviously can't be
         # an interactively issued command.
         return
     fi
-    if [[ -z "$__bp_preexec_interactive_mode" ]]
-    then
-        # We're doing something related to displaying the prompt.  Let the
-        # prompt set the title instead of me.
+
+    if [[ -z "$__bp_preexec_interactive_mode" ]]; then
+        # We're doing something related to displaying the prompt. Most likely
+        # not a command executed by theuser.
         return
     else
-        # If we're in a subshell, then the prompt won't be re-displayed to put
-        # us back into interactive mode, so let's not set the variable back.
-        # In other words, if you have a subshell like
-        #   (sleep 1; sleep 2)
-        # You want to see the 'sleep 2' as a set_command_title as well.
-        if [[ 0 -eq "$BASH_SUBSHELL" ]]
-        then
-            __bp_preexec_interactive_mode=""
-        fi
+        __bp_preexec_interactive_mode=""
     fi
 
-    if  __bp_in_prompt_command "$BASH_COMMAND"; then
-        # If we're executing something inside our prompt_command then we don't
-        # want to call preexec. Bash prior to 3.1 can't detect this at all :/
+    local this_command="$(__bp_last_history_command)"
 
-        __bp_preexec_interactive_mode=""
+    # Sanity check to make sure we have something to invoke our function with.
+    if [[ -z "$this_command" || -z "$BASH_COMMAND" ]]; then
         return
     fi
 
-    local this_command="$(HISTTIMEFORMAT= history 1 | sed -e "s/^[ ]*[0-9]*[ ]*//g")";
-
-    # Sanity check to make sure we have something to invoke our function with.
-    if [[ -z "$this_command" ]]; then
+    # Check if our history has changed and invoke preexec if it has.
+    # This will invoke prexec for functions and subshells as a result of
+    # this function being called by __bp_precmd_invoke_cmd.
+    if [[ "$__bp_previous_command" != "$this_command" ]]; then
+        __bp_previous_command="$this_command"
+    elif __bp_in_prompt_command "$BASH_COMMAND"; then
+        # If we're executing something inside our prompt_command then we don't
+        # want to call preexec.
+        __bp_preexec_interactive_mode=""
         return
     fi
 
@@ -208,14 +215,14 @@ __bp_preexec_and_precmd_install() {
         existing_prompt_command=""
     fi
 
-    # Finally install our traps.
-    PROMPT_COMMAND="__bp_precmd_invoke_cmd; ${existing_prompt_command} __bp_interactive_mode;"
-    trap '__bp_preexec_invoke_exec' DEBUG;
-
     # Add two functions to our arrays for convenience
     # of definition.
     precmd_functions+=(precmd)
     preexec_functions+=(preexec)
+
+    # Finally install our traps.
+    PROMPT_COMMAND="__bp_precmd_invoke_cmd; ${existing_prompt_command} __bp_interactive_mode;"
+    trap '__bp_preexec_invoke_exec' DEBUG;
 }
 
 # Run our install so long as we're not delaying it.
