@@ -1,5 +1,6 @@
-Bash-Preexec
+Bash-Preexec [![Build Status](https://travis-ci.org/rcaloras/bash-preexec.svg?branch=master)](https://travis-ci.org/rcaloras/bash-preexec)
 ============
+
 
 **preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
 
