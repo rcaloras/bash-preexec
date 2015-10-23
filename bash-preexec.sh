@@ -176,7 +176,8 @@ __bp_preexec_invoke_exec() {
     for preexec_function in "${preexec_functions[@]}"; do
 
         # Only execute each function if it actually exists.
-        if [[ -n $(type -t $preexec_function) ]]; then
+        # Test existence of function with: declare -[fF]
+        if type -t "$preexec_function" 1>/dev/null; then
             $preexec_function "$this_command"
         fi
     done
