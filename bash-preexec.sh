@@ -205,7 +205,9 @@ __bp_preexec_and_precmd_install() {
     local existing_prompt_command
 
     if [[ -n "$PROMPT_COMMAND" ]]; then
-        existing_prompt_command=$(echo "$PROMPT_COMMAND" | sed '/; *$/!s/$/;/')
+        existing_prompt_command=${PROMPT_COMMAND%${PROMPT_COMMAND##*[![:space:]]}}
+        existing_prompt_command=${existing_prompt_command%;}
+        existing_prompt_command=${existing_prompt_command/%/;}
     else
         existing_prompt_command=""
     fi
