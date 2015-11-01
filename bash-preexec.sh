@@ -85,10 +85,11 @@ __bp_precmd_invoke_cmd() {
 
     # For every function defined in our function array. Invoke it.
     local precmd_function
-    for precmd_function in ${precmd_functions[@]}; do
+    for precmd_function in "${precmd_functions[@]}"; do
 
         # Only execute this function if it actually exists.
-        if [[ -n $(type -t $precmd_function) ]]; then
+        # Test existence of functions with: declare -[Ff]
+        if type -t "$precmd_function" 1>/dev/null; then
             __bp_set_ret_value $ret_value
             $precmd_function
         fi
