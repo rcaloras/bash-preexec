@@ -13,19 +13,59 @@ test_preexec_echo() {
   echo "$1"
 }
 
-@test "__bp_preexec_and_precmd_install should exit with 1 if we're not using bash" {
+@test "__bp_install_after_session_init should exit with 1 if we're not using bash" {
   unset BASH_VERSION
-  run '__bp_preexec_and_precmd_install'
+  run '__bp_install_after_session_init'
   [[ $status == 1 ]]
   [[ -z "$output" ]]
 }
 
-@test "__bp_preexec_and_precmd_install should exit if it's already installed" {
+@test "__bp_install should exit if it's already installed" {
   PROMPT_COMMAND="some_other_function; __bp_precmd_invoke_cmd;"
-  run '__bp_preexec_and_precmd_install'
+  run '__bp_install'
   [[ $status == 1 ]]
   [[ -z "$output" ]]
 }
+
+@test "__bp_install should remove trap and itself from PROMPT_COMMAND" {
+  trap_string="trap '__bp_preexec_invoke_exec' DEBUG;"
+  PROMPT_COMMAND="some_other_function; $trap_string __bp_install;"
+
+  [[ $PROMPT_COMMAND  == *"$trap_string"* ]]
+  [[ $PROMPT_COMMAND  = *"__bp_install;"* ]]
+
+  __bp_install
+
+  [[ $PROMPT_COMMAND  != *"$trap_string"* ]]
+  [[ $PROMPT_COMMAND  != *"__bp_install;"* ]]
+  [[ -z "$output" ]]
+}
+
+@test "__bp_prompt_command_with_semi_colon should handle different PROMPT_COMMANDS" {
+    # PROMPT_COMMAND of spaces
+    PROMPT_COMMAND=" "
+
+    run '__bp_prompt_command_with_semi_colon'
+    [[ -z "$output" ]]
+
+    # PROMPT_COMMAND of one command
+    PROMPT_COMMAND="echo 'yo'"
+
+    run '__bp_prompt_command_with_semi_colon'
+    [[ "$output" == "echo 'yo';" ]]
+
+    # No PROMPT_COMMAND
+    unset PROMPT_COMMAND
+    run '__bp_prompt_command_with_semi_colon'
+    [[ -z "$output" ]]
+
+    # PROMPT_COMMAND of two commands and trimmed
+    PROMPT_COMMAND="echo 'yo'; ls    "
+
+    run '__bp_prompt_command_with_semi_colon'
+    [[ "$output" == "echo 'yo'; ls;" ]]
+}
+
 
 @test "No functions defined for preexec should simply return" {
     run '__bp_preexec_invoke_exec'
