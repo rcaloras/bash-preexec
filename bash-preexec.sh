@@ -40,6 +40,9 @@ if [[ "$__bp_imported" == "defined" ]]; then
 fi
 __bp_imported="defined"
 
+# Should be available to each precmd and preexec
+# functions, should they want it.
+__bp_last_command_ret_value="$?"
 
 # Remove ignorespace and or replace ignoreboth from HISTCONTROL
 # so we can accurately invoke preexec with a command from our
@@ -81,7 +84,7 @@ __bp_interactive_mode() {
 __bp_precmd_invoke_cmd() {
 
     # Should be available to each precmd function, should it want it.
-    local ret_value="$?"
+    __bp_last_ret_value="$?"
 
     # For every function defined in our function array. Invoke it.
     local precmd_function
@@ -90,7 +93,7 @@ __bp_precmd_invoke_cmd() {
         # Only execute this function if it actually exists.
         # Test existence of functions with: declare -[Ff]
         if type -t "$precmd_function" 1>/dev/null; then
-            __bp_set_ret_value $ret_value
+            __bp_set_ret_value $__bp_last_ret_value
             $precmd_function
         fi
     done
@@ -130,14 +133,19 @@ __bp_in_prompt_command() {
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
 
-    if [[ -n "$COMP_LINE" ]]
-    then
-        # We're in the middle of a completer.  This obviously can't be
+    # Checks if the file descriptor is not standard out (i.e. '1')
+    # __bp_delay_install checks if we're in test. Needed for bats to run.
+    # Prevents preexec from being invoked for functions in PS1
+    if [[ ! -t 1 && -z "$__bp_delay_install" ]]; then
+      return
+    fi
+
+    if [[ -n "$COMP_LINE" ]]; then
+        # We're in the middle of a completer. This obviously can't be
         # an interactively issued command.
         return
     fi
-    if [[ -z "$__bp_preexec_interactive_mode" ]]
-    then
+    if [[ -z "$__bp_preexec_interactive_mode" ]]; then
         # We're doing something related to displaying the prompt.  Let the
         # prompt set the title instead of me.
         return
@@ -147,8 +155,7 @@ __bp_preexec_invoke_exec() {
         # In other words, if you have a subshell like
         #   (sleep 1; sleep 2)
         # You want to see the 'sleep 2' as a set_command_title as well.
-        if [[ 0 -eq "$BASH_SUBSHELL" ]]
-        then
+        if [[ 0 -eq "$BASH_SUBSHELL" ]]; then
             __bp_preexec_interactive_mode=""
         fi
     fi
@@ -156,7 +163,6 @@ __bp_preexec_invoke_exec() {
     if  __bp_in_prompt_command "$BASH_COMMAND"; then
         # If we're executing something inside our prompt_command then we don't
         # want to call preexec. Bash prior to 3.1 can't detect this at all :/
-
         __bp_preexec_interactive_mode=""
         return
     fi
@@ -180,6 +186,7 @@ __bp_preexec_invoke_exec() {
         # Only execute each function if it actually exists.
         # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
+            __bp_set_ret_value $__bp_last_ret_value
             $preexec_function "$this_command"
         fi
     done
@@ -200,6 +207,11 @@ __bp_preexec_and_precmd_install() {
 
     # Adjust our HISTCONTROL Variable if needed.
     __bp_adjust_histcontrol
+
+
+    # Set so debug trap will work be invoked in subshells.
+    set -o functrace > /dev/null 2>&1
+    shopt -s extdebug > /dev/null 2>&1
 
     # Take our existing prompt command and append a semicolon to it
     # if it doesn't already have one.
