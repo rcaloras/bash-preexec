@@ -9,6 +9,6 @@
 @test "should import of not defined" {
   unset __bp_imported
   source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
-  [[ -n $(type -t __bp_preexec_and_precmd_install) ]]
+  [[ -n $(type -t __bp_install) ]]
 }
 
