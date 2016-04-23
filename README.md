@@ -6,7 +6,7 @@ Bash-Preexec
 
 **preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
 
-<img src="https://bashhub.com/assets/images/bashhub-logo.png" alt="Bashhub Logo" width="200">
+[<img src="https://bashhub.com/assets/images/bashhub-logo.png" alt="Bashhub Logo" width="200">](https://bashhub.com)
 
 This project is currently being used in production by [Bashhub](https://github.com/rcaloras/bashhub-client). Hype!
 
