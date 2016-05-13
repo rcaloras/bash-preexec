@@ -42,7 +42,7 @@ __bp_imported="defined"
 
 # Should be available to each precmd and preexec
 # functions, should they want it.
-__bp_last_command_ret_value="$?"
+__bp_last_ret_value="$?"
 
 # Command to set our preexec trap. It's invoked once via
 # PROMPT_COMMAND and then removed.
@@ -87,7 +87,7 @@ __bp_interactive_mode() {
 # It will invoke any functions defined in the precmd_functions array.
 __bp_precmd_invoke_cmd() {
 
-    # Should be available to each precmd function, should it want it.
+    # Save the returned value from our last command
     __bp_last_ret_value="$?"
 
     # For every function defined in our function array. Invoke it.
