@@ -77,6 +77,14 @@ echo ${preexec_functions[@]}
 echo ${precmd_functions[@]}
 ```
 
+##Subshells
+bash-preexec does not support invoking preexec() for subshells by default. It must be enabled by setting `__bp_enable_subshells`.
+```bash
+# Enable experimental subshell support
+export __bp_enable_subshells="true"
+```
+This is disabled by default due to buggy situations related to to `functrace` and Bash's `DEBUG trap`. See [Issue #25](https://github.com/rcaloras/bash-preexec/issues/25)
+
 ##Tests
 You can run tests using [Bats](https://github.com/sstephenson/bats).
 ```bash
