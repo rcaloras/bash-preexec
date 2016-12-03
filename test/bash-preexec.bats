@@ -28,7 +28,7 @@ test_preexec_echo() {
 }
 
 @test "__bp_install should remove trap and itself from PROMPT_COMMAND" {
-  trap_string="trap '__bp_preexec_invoke_exec' DEBUG;"
+  trap_string="trap '__bp_preexec_invoke_exec \"\$_\"' DEBUG;"
   PROMPT_COMMAND="some_other_function; $trap_string __bp_install;"
 
   [[ $PROMPT_COMMAND  == *"$trap_string"* ]]
