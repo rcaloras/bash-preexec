@@ -45,8 +45,7 @@ __bp_imported="defined"
 __bp_last_ret_value="$?"
 
 # Command to set our preexec trap. It's invoked once via
-# PROMPT_COMMAND and then removed. This is the quoted form of the string:
-# trap '__bp_preexec_invoke_exec "$_"' DEBUG;
+# PROMPT_COMMAND and then removed.
 __bp_trap_install_string="trap '__bp_preexec_invoke_exec \"\$_\"' DEBUG;"
 
 # Remove ignorespace and or replace ignoreboth from HISTCONTROL
@@ -138,11 +137,6 @@ __bp_in_prompt_command() {
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
 
-    # Save the contents of $_ so that it can be restored later on.
-    # See https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
-    # for an example of why this is required
-    local old_=$1
-
     # Checks if the file descriptor is not standard out (i.e. '1')
     # __bp_delay_install checks if we're in test. Needed for bats to run.
     # Prevents preexec from being invoked for functions in PS1
@@ -200,8 +194,6 @@ __bp_preexec_invoke_exec() {
             $preexec_function "$this_command"
         fi
     done
-
-    : "$old_" # restore $_ (last argument of last command executed)
 }
 
 # Returns PROMPT_COMMAND with a semicolon appended
@@ -261,7 +253,7 @@ __bp_install() {
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
     PROMPT_COMMAND="__bp_precmd_invoke_cmd; ${existing_prompt_command} __bp_interactive_mode;"
-    trap '__bp_preexec_invoke_exec "$_"' DEBUG;
+    eval "$__bp_trap_install_string"
 
     # Add two functions to our arrays for convenience
     # of definition.

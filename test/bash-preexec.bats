@@ -185,9 +185,3 @@ test_preexec_echo() {
     [[ $status == 0 ]]
     [[ "$output" == "$git_command" ]]
 }
-
-@test 'preexec should preserve $_' {
-    preexec_functions+=(test_echo)
-    : expected
-    [[ $_ = expected ]]
-}
