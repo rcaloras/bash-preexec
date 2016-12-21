@@ -137,6 +137,11 @@ __bp_in_prompt_command() {
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
 
+
+    # Save the contents of $_ so that it can be restored later on.
+    # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
+    local last_argument_prev_command="$1"
+
     # Checks if the file descriptor is not standard out (i.e. '1')
     # __bp_delay_install checks if we're in test. Needed for bats to run.
     # Prevents preexec from being invoked for functions in PS1
@@ -194,6 +199,9 @@ __bp_preexec_invoke_exec() {
             $preexec_function "$this_command"
         fi
     done
+
+    # Restore the last argument of the last executed command
+    : "$last_argument_prev_command"
 }
 
 # Returns PROMPT_COMMAND with a semicolon appended
