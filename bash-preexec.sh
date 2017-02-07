@@ -43,6 +43,7 @@ __bp_imported="defined"
 # Should be available to each precmd and preexec
 # functions, should they want it.
 __bp_last_ret_value="$?"
+__bp_last_argument_prev_command="$_"
 
 # Command to set our preexec trap. It's invoked once via
 # PROMPT_COMMAND and then removed.
@@ -97,7 +98,7 @@ __bp_precmd_invoke_cmd() {
         # Only execute this function if it actually exists.
         # Test existence of functions with: declare -[Ff]
         if type -t "$precmd_function" 1>/dev/null; then
-            __bp_set_ret_value $__bp_last_ret_value
+            __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
             $precmd_function
         fi
     done
@@ -140,7 +141,7 @@ __bp_preexec_invoke_exec() {
 
     # Save the contents of $_ so that it can be restored later on.
     # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
-    local last_argument_prev_command="$1"
+    __bp_last_argument_prev_command="$1"
 
     # Checks if the file descriptor is not standard out (i.e. '1')
     # __bp_delay_install checks if we're in test. Needed for bats to run.
@@ -201,7 +202,7 @@ __bp_preexec_invoke_exec() {
     done
 
     # Restore the last argument of the last executed command
-    : "$last_argument_prev_command"
+    : "$__bp_last_argument_prev_command"
 }
 
 # Returns PROMPT_COMMAND with a semicolon appended
