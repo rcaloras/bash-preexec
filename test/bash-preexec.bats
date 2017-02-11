@@ -96,6 +96,19 @@ test_preexec_echo() {
     [[ "$output" == "251" ]]
 }
 
+@test "precmd should set $_ to be the previous last arg" {
+    echo_last_arg() {
+      echo "$_"
+    }
+    precmd_functions+=(echo_last_arg)
+
+    __bp_last_argument_prev_command="last-arg"
+
+    run '__bp_precmd_invoke_cmd'
+    [[ $status == 0 ]]
+    [[ "$output" == "last-arg" ]]
+}
+
 
 @test "preexec should execute a function with the last command in our history" {
     preexec_functions+=(test_preexec_echo)
