@@ -28,7 +28,7 @@ test_preexec_echo() {
 }
 
 @test "__bp_install should remove trap and itself from PROMPT_COMMAND" {
-  trap_string="trap '__bp_preexec_invoke_exec' DEBUG;"
+  trap_string="trap '__bp_preexec_invoke_exec \"\$_\"' DEBUG;"
   PROMPT_COMMAND="some_other_function; $trap_string __bp_install;"
 
   [[ $PROMPT_COMMAND  == *"$trap_string"* ]]
@@ -94,6 +94,19 @@ test_preexec_echo() {
     run '__bp_precmd_invoke_cmd'
     [[ $status == 0 ]]
     [[ "$output" == "251" ]]
+}
+
+@test "precmd should set $_ to be the previous last arg" {
+    echo_last_arg() {
+      echo "$_"
+    }
+    precmd_functions+=(echo_last_arg)
+
+    __bp_last_argument_prev_command="last-arg"
+
+    run '__bp_precmd_invoke_cmd'
+    [[ $status == 0 ]]
+    [[ "$output" == "last-arg" ]]
 }
 
 
