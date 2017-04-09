@@ -10,7 +10,7 @@ Bash-Preexec
 
 This project is currently being used in production by [Bashhub](https://github.com/rcaloras/bashhub-client). Hype!
 
-##Quick Start
+## Quick Start
 ```bash
 # Pull down our file from GitHub and write it to our home directory as a hidden file.
 curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh -o ~/.bash-preexec.sh
@@ -21,7 +21,7 @@ preexec() { echo "just typed $1"; }
 precmd() { echo "printing the prompt"; }
 ```
 
-##Install
+## Install
 You'll want to pull down the file and add it to your bash profile/configuration (i.e ~/.bashrc, ~/.profile, ~/.bash_profile, etc). **It must be the last thing imported in your bash profile.**
 ```bash
 # Pull down our file from GitHub and write it to our home directory as a hidden file.
@@ -30,7 +30,7 @@ curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec
 echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh' >> ~/.bashrc
 ```
 
-##Usage
+## Usage
 Two functions **preexec** and **precmd** can now be defined and they'll be automatically invoked by bash-preexec if they exist.
 
 * `preexec` Executed just after a command has been read and is about to be executed. The string that the user typed is passed as the first argument.
@@ -52,14 +52,14 @@ You can also define functions to be invoked by appending them to two different a
 * `$preexec_functions` Array of functions invoked by preexec.
 * `$precmd_functions` Array of functions invoked by precmd.
 
-####preexec
+#### preexec
 ```bash
 # Define some function to use preexec
 preexec_hello_world() { echo "You just entered $1"; }
 # Add it to the array of functions to be invoked each time.
 preexec_functions+=(preexec_hello_world)
 ```
-####precmd
+#### precmd
 ````bash
 precmd_hello_world() { echo "This is invoked before the prompt is displayed"; }
 precmd_functions+=(precmd_hello_world)
@@ -77,7 +77,7 @@ echo ${preexec_functions[@]}
 echo ${precmd_functions[@]}
 ```
 
-##Subshells
+## Subshells
 bash-preexec does not support invoking preexec() for subshells by default. It must be enabled by setting `__bp_enable_subshells`.
 ```bash
 # Enable experimental subshell support
@@ -85,7 +85,7 @@ export __bp_enable_subshells="true"
 ```
 This is disabled by default due to buggy situations related to to `functrace` and Bash's `DEBUG trap`. See [Issue #25](https://github.com/rcaloras/bash-preexec/issues/25)
 
-##Tests
+## Tests
 You can run tests using [Bats](https://github.com/sstephenson/bats).
 ```bash
 bats test
