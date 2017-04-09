@@ -59,26 +59,32 @@ preexec_hello_world() { echo "You just entered $1"; }
 # Add it to the array of functions to be invoked each time.
 preexec_functions+=(preexec_hello_world)
 ```
+
 #### precmd
-````bash
+```bash
 precmd_hello_world() { echo "This is invoked before the prompt is displayed"; }
 precmd_functions+=(precmd_hello_world)
 ```
+
 You can also define multiple functions to be invoked like so.
+
 ```bash
 precmd_hello_one() { echo "This is invoked on precmd first"; }
 precmd_hello_two() { echo "This is invoked on precmd second"; }
 precmd_functions+=(precmd_hello_one)
 precmd_functions+=(precmd_hello_two)
 ```
+
 You can check the functions set for each by echoing its contents.
+
 ```bash
 echo ${preexec_functions[@]}
 echo ${precmd_functions[@]}
 ```
 
 ## Subshells
-bash-preexec does not support invoking preexec() for subshells by default. It must be enabled by setting `__bp_enable_subshells`.
+bash-preexec does not support invoking preexec() for subshells by default. It must be enabled by setting 
+`__bp_enable_subshells`.
 ```bash
 # Enable experimental subshell support
 export __bp_enable_subshells="true"
