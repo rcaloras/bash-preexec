@@ -191,6 +191,7 @@ __bp_preexec_invoke_exec() {
 
     # For every function defined in our function array. Invoke it.
     local preexec_function
+    local preexec_ret_value
     for preexec_function in "${preexec_functions[@]}"; do
 
         # Only execute each function if it actually exists.
@@ -198,11 +199,16 @@ __bp_preexec_invoke_exec() {
         if type -t "$preexec_function" 1>/dev/null; then
             __bp_set_ret_value $__bp_last_ret_value
             $preexec_function "$this_command"
+            preexec_ret_value="$?"
         fi
     done
 
     # Restore the last argument of the last executed command
-    : "$__bp_last_argument_prev_command"
+    # Also preserves the return value of the last function executed in preexec
+    # If `extdebug` is enabled a non-zero return value from the last function
+    # in prexec causes the command not to execute
+    # Run `shopt -s extdebug` to enable
+    __bp_set_ret_value $preexec_ret_value "$__bp_last_argument_prev_command"
 }
 
 # Returns PROMPT_COMMAND with a semicolon appended
