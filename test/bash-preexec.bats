@@ -66,9 +66,11 @@ test_preexec_echo() {
     [[ "$output" == "echo 'yo'; ls;" ]]
 }
 
-
 @test "No functions defined for preexec should simply return" {
-    run '__bp_preexec_invoke_exec'
+    __bp_preexec_interactive_mode="on"
+    history -s "fake command"
+
+    run '__bp_preexec_invoke_exec' 'true'
     [[ $status == 0 ]]
     [[ -z "$output" ]]
 }
@@ -80,7 +82,7 @@ test_preexec_echo() {
     [[ "$output" == "test echo" ]]
 }
 
-@test "precmd should set $? to be the previous exit code" {
+@test "precmd should set \$? to be the previous exit code" {
     echo_exit_code() {
       echo "$?"
       return 0
@@ -96,7 +98,7 @@ test_preexec_echo() {
     [[ "$output" == "251" ]]
 }
 
-@test "precmd should set $_ to be the previous last arg" {
+@test "precmd should set \$_ to be the previous last arg" {
     echo_last_arg() {
       echo "$_"
     }
@@ -108,7 +110,6 @@ test_preexec_echo() {
     [[ $status == 0 ]]
     [[ "$output" == "last-arg" ]]
 }
-
 
 @test "preexec should execute a function with the last command in our history" {
     preexec_functions+=(test_preexec_echo)
@@ -145,6 +146,19 @@ test_preexec_echo() {
     [[ $status == 0 ]]
     [[ "${lines[0]}" == "one" ]]
     [[ "${lines[1]}" == "two" ]]
+}
+
+@test "preexec should set \$? to be the exit code of preexec_functions" {
+    return_nonzero() {
+      return 1
+    }
+    preexec_functions+=(return_nonzero)
+
+    __bp_preexec_interactive_mode="on"
+    history -s "fake command"
+
+    run '__bp_preexec_invoke_exec'
+    [[ $status == 1 ]]
 }
 
 @test "in_prompt_command should detect if a command is part of PROMPT_COMMAND" {
