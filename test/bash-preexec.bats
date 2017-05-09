@@ -41,6 +41,14 @@ test_preexec_echo() {
   [[ -z "$output" ]]
 }
 
+@test "\$PROMPT_COMMAND=\"\$PROMPT_COMMAND; foo\" should work" {
+    __bp_install
+
+    eval "$PROMPT_COMMAND=$PROMPT_COMMAND; true"
+
+    [[ -z "$output" ]]
+}
+
 @test "__bp_prompt_command_with_semi_colon should handle different PROMPT_COMMANDS" {
     # PROMPT_COMMAND of spaces
     PROMPT_COMMAND=" "
