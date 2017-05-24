@@ -211,35 +211,7 @@ __bp_preexec_invoke_exec() {
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
 
-# Returns PROMPT_COMMAND with a semicolon appended
-# if it doesn't already have one.
-__bp_prompt_command_with_semi_colon() {
-
-    # Trim our existing PROMPT_COMMAND
-    local trimmed
-    trimmed=$(__bp_trim_whitespace "$PROMPT_COMMAND")
-
-    # Take our existing prompt command and append a semicolon to it
-    # if it doesn't already have one.
-    local existing_prompt_command
-    if [[ -n "$trimmed" ]]; then
-        existing_prompt_command=${trimmed%${trimmed##*[![:space:]]}}
-        existing_prompt_command=${existing_prompt_command%;}
-        existing_prompt_command=${existing_prompt_command/%/;}
-    else
-        existing_prompt_command=""
-    fi
-
-    echo -n "$existing_prompt_command"
-}
-
 __bp_install() {
-
-    # Remove setting our trap from PROMPT_COMMAND
-    PROMPT_COMMAND="${PROMPT_COMMAND//$__bp_trap_install_string}"
-
-    # Remove this function from our PROMPT_COMMAND
-    PROMPT_COMMAND="${PROMPT_COMMAND//__bp_install;}"
 
     # Exit if we already have this installed.
     if [[ "$PROMPT_COMMAND" == *"__bp_precmd_invoke_cmd"* ]]; then
@@ -248,7 +220,6 @@ __bp_install() {
 
     # Adjust our HISTCONTROL Variable if needed.
     __bp_adjust_histcontrol
-
 
     # Issue #25. Setting debug trap for subshells causes sessions to exit for
     # backgrounded subshell commands (e.g. (pwd)& ). Believe this is a bug in Bash.
@@ -261,19 +232,19 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi;
 
-
-    local existing_prompt_command
-    existing_prompt_command=$(__bp_prompt_command_with_semi_colon)
-
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    PROMPT_COMMAND="__bp_precmd_invoke_cmd; ${existing_prompt_command} __bp_interactive_mode"
+    PROMPT_COMMAND="__bp_precmd_invoke_cmd; __bp_interactive_mode"
     eval "$__bp_trap_install_string"
 
     # Add two functions to our arrays for convenience
     # of definition.
     precmd_functions+=(precmd)
     preexec_functions+=(preexec)
+
+    if [[ -n $(type -t existing_prompt_command) ]]; then
+        precmd_functions+=(existing_prompt_command)
+    fi
 
     # Since this is in PROMPT_COMMAND, invoke any precmd functions we have defined.
     __bp_precmd_invoke_cmd
@@ -293,12 +264,13 @@ __bp_install_after_session_init() {
         return 1;
     fi
 
-    local existing_prompt_command
-    existing_prompt_command=$(__bp_prompt_command_with_semi_colon)
+    if [[ -n "$PROMPT_COMMAND" ]]; then
+        eval "existing_prompt_command() { $PROMPT_COMMAND; }"
+    fi
 
     # Add our installation to be done last via our PROMPT_COMMAND. These are
     # removed by __bp_install when it's invoked so it only runs once.
-    PROMPT_COMMAND="${existing_prompt_command} $__bp_trap_install_string __bp_install;"
+    PROMPT_COMMAND="$__bp_trap_install_string __bp_install;"
 }
 
 # Run our install so long as we're not delaying it.
