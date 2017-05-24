@@ -49,31 +49,6 @@ test_preexec_echo() {
     [[ -z "$output" ]]
 }
 
-@test "__bp_prompt_command_with_semi_colon should handle different PROMPT_COMMANDS" {
-    # PROMPT_COMMAND of spaces
-    PROMPT_COMMAND=" "
-
-    run '__bp_prompt_command_with_semi_colon'
-    [[ -z "$output" ]]
-
-    # PROMPT_COMMAND of one command
-    PROMPT_COMMAND="echo 'yo'"
-
-    run '__bp_prompt_command_with_semi_colon'
-    [[ "$output" == "echo 'yo';" ]]
-
-    # No PROMPT_COMMAND
-    unset PROMPT_COMMAND
-    run '__bp_prompt_command_with_semi_colon'
-    [[ -z "$output" ]]
-
-    # PROMPT_COMMAND of two commands and trimmed
-    PROMPT_COMMAND="echo 'yo'; ls    "
-
-    run '__bp_prompt_command_with_semi_colon'
-    [[ "$output" == "echo 'yo'; ls;" ]]
-}
-
 @test "No functions defined for preexec should simply return" {
     __bp_preexec_interactive_mode="on"
     history -s "fake command"
