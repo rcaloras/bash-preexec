@@ -91,7 +91,7 @@ __bp_precmd_invoke_cmd() {
     # Save the returned value from our last command
     __bp_last_ret_value="$?"
 
-    # For every function defined in our function array. Invoke it.
+    # Invoke every function defined in our function array.
     local precmd_function
     for precmd_function in "${precmd_functions[@]}"; do
 
@@ -189,8 +189,9 @@ __bp_preexec_invoke_exec() {
     # the command is in fact interactive and we should invoke the user's
     # preexec functions.
 
-    # For every function defined in our function array. Invoke it.
+    # Invoke every function defined in our function array.
     local preexec_function
+    local preexec_function_ret_value
     local preexec_ret_value=0
     for preexec_function in "${preexec_functions[@]}"; do
 
@@ -199,14 +200,18 @@ __bp_preexec_invoke_exec() {
         if type -t "$preexec_function" 1>/dev/null; then
             __bp_set_ret_value $__bp_last_ret_value
             $preexec_function "$this_command"
-            preexec_ret_value="$?"
+            preexec_function_ret_value="$?"
+            if [[ "$preexec_function_ret_value" != 0 ]]; then
+                preexec_ret_value="$preexec_function_ret_value"
+            fi
         fi
     done
 
-    # Restore the last argument of the last executed command
-    # Also preserves the return value of the last function executed in preexec
-    # If `extdebug` is enabled a non-zero return value from the last function
-    # in prexec causes the command not to execute
+    # Restore the last argument of the last executed command, and set the return
+    # value of the DEBUG trap to be the return code of the last preexec function
+    # to return an error.
+    # If `extdebug` is enabled a non-zero return value from any preexec function
+    # will cause the user's command not to execute.
     # Run `shopt -s extdebug` to enable
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
