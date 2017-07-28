@@ -38,15 +38,13 @@ test_preexec_echo() {
 
   [[ $PROMPT_COMMAND  != *"$trap_string"* ]]
   [[ $PROMPT_COMMAND  != *"__bp_install;"* ]]
-  [[ -z "$output" ]]
 }
 
-@test "\$PROMPT_COMMAND=\"\$PROMPT_COMMAND; foo\" should work" {
+@test "PROMPT_COMMAND=\"\$PROMPT_COMMAND; foo\" should work" {
     __bp_install
 
-    eval "$PROMPT_COMMAND=$PROMPT_COMMAND; true"
-
-    [[ -z "$output" ]]
+    PROMPT_COMMAND="$PROMPT_COMMAND; true"
+    eval "$PROMPT_COMMAND"
 }
 
 @test "__bp_prompt_command_with_semi_colon should handle different PROMPT_COMMANDS" {
