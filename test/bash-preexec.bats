@@ -1,8 +1,15 @@
 #!/usr/bin/env bats
 
 setup() {
+  PROMPT_COMMAND=''        # in case the invoking shell has set this
+  history -s fake command  # preexec requires there be some history
   __bp_delay_install="true"
   source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
+}
+
+bp_install() {
+  __bp_install_after_session_init
+  eval "$PROMPT_COMMAND"
 }
 
 test_echo() {
@@ -21,60 +28,54 @@ test_preexec_echo() {
 }
 
 @test "__bp_install should exit if it's already installed" {
-  PROMPT_COMMAND="some_other_function; __bp_precmd_invoke_cmd;"
+  bp_install
+
   run '__bp_install'
   [[ $status == 1 ]]
   [[ -z "$output" ]]
 }
 
-@test "__bp_install should remove trap and itself from PROMPT_COMMAND" {
-  trap_string="trap '__bp_preexec_invoke_exec \"\$_\"' DEBUG;"
-  PROMPT_COMMAND="some_other_function; $trap_string __bp_install;"
+@test "__bp_install should remove trap logic and itself from PROMPT_COMMAND" {
+  __bp_install_after_session_init
 
-  [[ $PROMPT_COMMAND  == *"$trap_string"* ]]
-  [[ $PROMPT_COMMAND  = *"__bp_install;"* ]]
+  [[ "$PROMPT_COMMAND" == *"trap DEBUG"* ]]
+  [[ "$PROMPT_COMMAND" == *"__bp_install"* ]]
 
-  __bp_install
+  eval "$PROMPT_COMMAND"
 
-  [[ $PROMPT_COMMAND  != *"$trap_string"* ]]
-  [[ $PROMPT_COMMAND  != *"__bp_install;"* ]]
+  [[ "$PROMPT_COMMAND" != *"trap DEBUG"* ]]
+  [[ "$PROMPT_COMMAND" != *"__bp_install"* ]]
+}
+
+@test "__bp_install should preserve an existing DEBUG trap" {
+  trap_invoked_count=0
+  foo() { (( trap_invoked_count += 1 )); }
+
+  # note setting this causes BATS to mis-report the failure line when this test fails
+  trap foo DEBUG
+  [[ "$(trap -p DEBUG | cut -d' ' -f3)" == "'foo'" ]]
+
+  bp_install
+  trap_count_snapshot=$trap_invoked_count
+
+  [[ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]]
+  [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]]
+
+  __bp_interactive_mode # triggers the DEBUG trap
+
+  # ensure the trap count is still being incremented after the trap's been overwritten
+  (( trap_count_snapshot < trap_invoked_count ))
 }
 
 @test "PROMPT_COMMAND=\"\$PROMPT_COMMAND; foo\" should work" {
-    __bp_install
+    bp_install
 
     PROMPT_COMMAND="$PROMPT_COMMAND; true"
     eval "$PROMPT_COMMAND"
 }
 
-@test "__bp_prompt_command_with_semi_colon should handle different PROMPT_COMMANDS" {
-    # PROMPT_COMMAND of spaces
-    PROMPT_COMMAND=" "
-
-    run '__bp_prompt_command_with_semi_colon'
-    [[ -z "$output" ]]
-
-    # PROMPT_COMMAND of one command
-    PROMPT_COMMAND="echo 'yo'"
-
-    run '__bp_prompt_command_with_semi_colon'
-    [[ "$output" == "echo 'yo';" ]]
-
-    # No PROMPT_COMMAND
-    unset PROMPT_COMMAND
-    run '__bp_prompt_command_with_semi_colon'
-    [[ -z "$output" ]]
-
-    # PROMPT_COMMAND of two commands and trimmed
-    PROMPT_COMMAND="echo 'yo'; ls    "
-
-    run '__bp_prompt_command_with_semi_colon'
-    [[ "$output" == "echo 'yo'; ls;" ]]
-}
-
 @test "No functions defined for preexec should simply return" {
-    __bp_preexec_interactive_mode="on"
-    history -s "fake command"
+    __bp_interactive_mode
 
     run '__bp_preexec_invoke_exec' 'true'
     [[ $status == 0 ]]
@@ -91,15 +92,18 @@ test_preexec_echo() {
 @test "precmd should set \$? to be the previous exit code" {
     echo_exit_code() {
       echo "$?"
-      return 0
     }
+    return_exit_code() {
+      return $1
+    }
+    # Helper function is necessary because Bats' run doesn't preserve $?
+    set_exit_code_and_run_precmd() {
+      return_exit_code 251
+      __bp_precmd_invoke_cmd
+    }
+
     precmd_functions+=(echo_exit_code)
-
-    __bp_set_ret_value() {
-      return 251
-    }
-
-    run '__bp_precmd_invoke_cmd'
+    run 'set_exit_code_and_run_precmd'
     [[ $status == 0 ]]
     [[ "$output" == "251" ]]
 }
@@ -110,8 +114,11 @@ test_preexec_echo() {
     }
     precmd_functions+=(echo_last_arg)
 
-    __bp_last_argument_prev_command="last-arg"
-
+    bats_trap=$(trap -p DEBUG)
+    trap DEBUG # remove the Bats stack-trace trap so $_ doesn't get overwritten
+    : "last-arg"
+    __bp_preexec_invoke_exec "$_"
+    eval "$bats_trap" # Restore trap
     run '__bp_precmd_invoke_cmd'
     [[ $status == 0 ]]
     [[ "$output" == "last-arg" ]]
@@ -119,8 +126,8 @@ test_preexec_echo() {
 
 @test "preexec should execute a function with the last command in our history" {
     preexec_functions+=(test_preexec_echo)
-    __bp_preexec_interactive_mode="on"
-    git_command="git commit -a -m 'commiting some stuff'"
+    __bp_interactive_mode
+    git_command="git commit -a -m 'committing some stuff'"
     history -s $git_command
 
     run '__bp_preexec_invoke_exec'
@@ -133,11 +140,11 @@ test_preexec_echo() {
     fun_2() { echo "$1 two"; }
     preexec_functions+=(fun_1)
     preexec_functions+=(fun_2)
-    __bp_preexec_interactive_mode="on"
-    history -s "fake command"
+    __bp_interactive_mode
 
     run '__bp_preexec_invoke_exec'
     [[ $status == 0 ]]
+    [[ "${#lines[@]}" == 2 ]]
     [[ "${lines[0]}" == "fake command one" ]]
     [[ "${lines[1]}" == "fake command two" ]]
 }
@@ -150,6 +157,7 @@ test_preexec_echo() {
 
     run '__bp_precmd_invoke_cmd'
     [[ $status == 0 ]]
+    [[ "${#lines[@]}" == 2 ]]
     [[ "${lines[0]}" == "one" ]]
     [[ "${lines[1]}" == "two" ]]
 }
@@ -160,8 +168,7 @@ test_preexec_echo() {
     }
     preexec_functions+=(return_nonzero)
 
-    __bp_preexec_interactive_mode="on"
-    history -s "fake command"
+    __bp_interactive_mode
 
     run '__bp_preexec_invoke_exec'
     [[ $status == 1 ]]
@@ -209,8 +216,8 @@ test_preexec_echo() {
 
 @test "preexec should respect HISTTIMEFORMAT" {
     preexec_functions+=(test_preexec_echo)
-    __bp_preexec_interactive_mode="on"
-    git_command="git commit -a -m 'commiting some stuff'"
+    __bp_interactive_mode
+    git_command="git commit -a -m 'committing some stuff'"
     HISTTIMEFORMAT='%F %T '
     history -s $git_command
 
