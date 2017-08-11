@@ -26,13 +26,13 @@
 #
 #       preexec_functions+=(my_preexec_function)
 #
-#  3. If you have anything that's using the Debug Trap, change it to use
-#     preexec. (Optional) change anything using PROMPT_COMMAND to now use
-#     precmd instead.
+#  3. Consider changing anything using the DEBUG trap or PROMPT_COMMAND
+#     to use preexec and precmd instead. Preexisting usages will be
+#     preserved, but doing so manually may be less surprising.
 #
-#  Note: This module requires two bash features which you must not otherwise be
-#  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. prexec_and_precmd_install
-#  will override these and if you override one or the other this will most likely break.
+#  Note: This module requires two Bash features which you must not otherwise be
+#  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. If you override
+#  either of these after bash-preexec has been installed it will most likely break.
 
 # Avoid duplicate inclusion
 if [[ "$__bp_imported" == "defined" ]]; then
@@ -44,10 +44,6 @@ __bp_imported="defined"
 # functions, should they want it.
 __bp_last_ret_value="$?"
 __bp_last_argument_prev_command="$_"
-
-# Command to set our preexec trap. It's invoked once via
-# PROMPT_COMMAND and then removed.
-__bp_trap_install_string="trap '__bp_preexec_invoke_exec \"\$_\"' DEBUG;"
 
 # Remove ignorespace and or replace ignoreboth from HISTCONTROL
 # so we can accurately invoke preexec with a command from our
@@ -137,8 +133,6 @@ __bp_in_prompt_command() {
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
-
-
     # Save the contents of $_ so that it can be restored later on.
     # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
     __bp_last_argument_prev_command="$1"
@@ -216,39 +210,22 @@ __bp_preexec_invoke_exec() {
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
 
-# Returns PROMPT_COMMAND with a semicolon appended
-# if it doesn't already have one.
-__bp_prompt_command_with_semi_colon() {
-
-    # Trim our existing PROMPT_COMMAND
-    local trimmed
-    trimmed=$(__bp_trim_whitespace "$PROMPT_COMMAND")
-
-    # Take our existing prompt command and append a semicolon to it
-    # if it doesn't already have one.
-    local existing_prompt_command
-    if [[ -n "$trimmed" ]]; then
-        existing_prompt_command=${trimmed%${trimmed##*[![:space:]]}}
-        existing_prompt_command=${existing_prompt_command%;}
-        existing_prompt_command=${existing_prompt_command/%/;}
-    else
-        existing_prompt_command=""
-    fi
-
-    echo -n "$existing_prompt_command"
-}
-
 __bp_install() {
-
-    # Remove setting our trap from PROMPT_COMMAND
-    PROMPT_COMMAND="${PROMPT_COMMAND//$__bp_trap_install_string}"
-
-    # Remove this function from our PROMPT_COMMAND
-    PROMPT_COMMAND="${PROMPT_COMMAND//__bp_install;}"
-
     # Exit if we already have this installed.
     if [[ "$PROMPT_COMMAND" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1;
+    fi
+
+    trap '__bp_preexec_invoke_exec "$_"' DEBUG
+
+    # Preserve any prior DEBUG trap as a preexec function
+    local prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"$__bp_trap_string")
+    unset __bp_trap_string
+    if [[ -n "$prior_trap" ]]; then
+        eval '__bp_original_debug_trap() {
+          '"$prior_trap"'
+        }'
+        preexec_functions+=(__bp_original_debug_trap)
     fi
 
     # Adjust our HISTCONTROL Variable if needed.
@@ -266,24 +243,17 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi;
 
-
-    local existing_prompt_command
-    existing_prompt_command=$(__bp_prompt_command_with_semi_colon)
-
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    PROMPT_COMMAND="__bp_precmd_invoke_cmd; ${existing_prompt_command} __bp_interactive_mode"
-    eval "$__bp_trap_install_string"
+    PROMPT_COMMAND="__bp_precmd_invoke_cmd; __bp_interactive_mode"
 
     # Add two functions to our arrays for convenience
     # of definition.
     precmd_functions+=(precmd)
     preexec_functions+=(preexec)
 
-    # Since this is in PROMPT_COMMAND, invoke any precmd functions we have defined.
-    __bp_precmd_invoke_cmd
-    # Put us in interactive mode for our first command.
-    __bp_interactive_mode
+    # Since this function is invoked via PROMPT_COMMAND, re-execute PC now that it's properly set
+    eval "$PROMPT_COMMAND"
 }
 
 # Sets our trap and __bp_install as part of our PROMPT_COMMAND to install
@@ -298,12 +268,20 @@ __bp_install_after_session_init() {
         return 1;
     fi
 
-    local existing_prompt_command
-    existing_prompt_command=$(__bp_prompt_command_with_semi_colon)
+    # If there's an existing PROMPT_COMMAND capture it and convert it into a function
+    # So it is preserved and invoked during precmd.
+    if [[ -n "$PROMPT_COMMAND" ]]; then
+      eval '__bp_original_prompt_command() {
+        '"$PROMPT_COMMAND"'
+      }'
+      precmd_functions+=(__bp_original_prompt_command)
+    fi
 
-    # Add our installation to be done last via our PROMPT_COMMAND. These are
-    # removed by __bp_install when it's invoked so it only runs once.
-    PROMPT_COMMAND="${existing_prompt_command} $__bp_trap_install_string __bp_install;"
+    # Installation is finalized in PROMPT_COMMAND, which allows us to override the DEBUG
+    # trap. __bp_install sets PROMPT_COMMAND to its final value, so these are only
+    # invoked once.
+    # It's necessary to clear any existing DEBUG trap in order to set it from the install function.
+    PROMPT_COMMAND='__bp_trap_string=$(trap -p DEBUG); trap DEBUG; __bp_install'
 }
 
 # Run our install so long as we're not delaying it.
