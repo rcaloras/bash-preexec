@@ -171,8 +171,15 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
+    # Obtain the current command from Bash's history. Note that we use 'fc'
+    # instead of 'history', since fc's output is designed to be machine-parsable.
+    # STDERR is redirected to /dev/null so that an out of range error will not
+    # be printed on the first command in the case that the user has unset
+    # HISTFILE.
     local this_command
-    this_command=$(HISTTIMEFORMAT= history 1 | { read -r _ this_command; echo "$this_command"; })
+    this_command="$( fc -l -0 2> /dev/null )"
+    this_command="${this_command#*$'\t'}"
+    this_command="${this_command#' '}"
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
