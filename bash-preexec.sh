@@ -281,7 +281,7 @@ __bp_install_after_session_init() {
     # trap. __bp_install sets PROMPT_COMMAND to its final value, so these are only
     # invoked once.
     # It's necessary to clear any existing DEBUG trap in order to set it from the install function.
-    PROMPT_COMMAND='__bp_trap_string=$(trap -p DEBUG); trap DEBUG; __bp_install'
+    PROMPT_COMMAND=$'\n__bp_trap_string=$(trap -p DEBUG); trap DEBUG; __bp_install\n'
 }
 
 # Run our install so long as we're not delaying it.
