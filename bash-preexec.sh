@@ -11,7 +11,7 @@
 # Author: Ryan Caloras (ryan@bashhub.com)
 # Forked from Original Author: Glyph Lefkowitz
 #
-# V0.3.4
+# V0.3.5
 #
 
 # General Usage:
