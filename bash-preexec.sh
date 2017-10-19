@@ -277,12 +277,15 @@ __bp_install_after_session_init() {
       precmd_functions+=(__bp_original_prompt_command)
     fi
 
+    # Save anything already defined in our trap
+    __bp_trap_string="$(trap -p DEBUG)"
+
     # Installation is finalized in PROMPT_COMMAND, which allows us to override the DEBUG
     # trap. __bp_install sets PROMPT_COMMAND to its final value, so these are only
     # invoked once.
     # It's necessary to clear any existing DEBUG trap in order to set it from the install function.
-    # Using \n as it's the most univer delimiter of bash commands
-    PROMPT_COMMAND=$'\n__bp_trap_string="$(trap -p DEBUG)"\n trap DEBUG\n __bp_install\n'
+    # Using \n as it's the most universal delimiter of bash commands
+    PROMPT_COMMAND=$'\ntrap DEBUG\n__bp_install\n'
 }
 
 # Run our install so long as we're not delaying it.
