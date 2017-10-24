@@ -149,7 +149,7 @@ __bp_preexec_invoke_exec() {
 
     # Don't invoke preexecs if we are inside of another preexec.
     if (( __bp_inside_preexec > 0 )); then
-      return;
+      return
     fi
     local __bp_inside_preexec=1
 
