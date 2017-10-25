@@ -86,6 +86,9 @@ __bp_interactive_mode() {
 # This function is installed as part of the PROMPT_COMMAND.
 # It will invoke any functions defined in the precmd_functions array.
 __bp_precmd_invoke_cmd() {
+    # Save the returned value from our last command
+    __bp_last_ret_value="$?"
+
     # Don't invoke precmds if we are inside an execution of an "original
     # prompt command" by another precmd execution loop. This avoids infinite
     # recursion.
@@ -93,9 +96,6 @@ __bp_precmd_invoke_cmd() {
       return
     fi
     local __bp_inside_precmd=1
-
-    # Save the returned value from our last command
-    __bp_last_ret_value="$?"
 
     # Invoke every function defined in our function array.
     local precmd_function
