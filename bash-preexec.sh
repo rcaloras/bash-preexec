@@ -48,6 +48,17 @@ __bp_last_argument_prev_command="$_"
 __bp_inside_precmd=0
 __bp_inside_preexec=0
 
+# Helper functions for handling IFS which must be default
+# for using read and working with bash arrays
+__bp_store_and_unset_ifs() {
+    ${IFS+"false"} && unset __bp__old_ifs || __bp_old_ifs="$IFS"
+    unset IFS
+}
+
+__bp_restore_ifs() {
+    ${__bp_old_ifs+"false"} && unset IFS || IFS="$__bp_old_ifs"
+}
+
 # Remove ignorespace and or replace ignoreboth from HISTCONTROL
 # so we can accurately invoke preexec with a command from our
 # history even if it starts with a space.
@@ -100,7 +111,9 @@ __bp_precmd_invoke_cmd() {
 
     # Invoke every function defined in our function array.
     local precmd_function
+    __bp_store_and_unset_ifs
     for precmd_function in "${precmd_functions[@]}"; do
+        __bp_restore_ifs
 
         # Only execute this function if it actually exists.
         # Test existence of functions with: declare -[Ff]
@@ -108,7 +121,9 @@ __bp_precmd_invoke_cmd() {
             __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
             $precmd_function
         fi
+        __bp_store_and_unset_ifs
     done
+    __bp_restore_ifs
 }
 
 # Sets a return value in $?. We may want to get access to the $? variable in our
@@ -126,15 +141,18 @@ __bp_in_prompt_command() {
     local trimmed_arg
     trimmed_arg=$(__bp_trim_whitespace "$1")
 
+    __bp_store_and_unset_ifs
     local command
     for command in "${prompt_command_array[@]}"; do
         local trimmed_command
         trimmed_command=$(__bp_trim_whitespace "$command")
         # Only execute each function if it actually exists.
         if [[ "$trimmed_command" == "$trimmed_arg" ]]; then
+            __bp_restore_ifs
             return 0
         fi
     done
+    __bp_restore_ifs
 
     return 1
 }
@@ -180,7 +198,6 @@ __bp_preexec_invoke_exec() {
             __bp_preexec_interactive_mode=""
         fi
     fi
-
     if  __bp_in_prompt_command "$BASH_COMMAND"; then
         # If we're executing something inside our prompt_command then we don't
         # want to call preexec. Bash prior to 3.1 can't detect this at all :/
@@ -189,7 +206,7 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    this_command=$(HISTTIMEFORMAT= builtin history 1 | { read -r _ this_command; echo "$this_command"; })
+    this_command=$(HISTTIMEFORMAT= builtin history 1 | { IFS=" " read -r _ this_command; echo "$this_command"; })
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
@@ -204,8 +221,9 @@ __bp_preexec_invoke_exec() {
     local preexec_function
     local preexec_function_ret_value
     local preexec_ret_value=0
+    __bp_store_and_unset_ifs
     for preexec_function in "${preexec_functions[@]}"; do
-
+        __bp_restore_ifs
         # Only execute each function if it actually exists.
         # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
@@ -216,7 +234,9 @@ __bp_preexec_invoke_exec() {
                 preexec_ret_value="$preexec_function_ret_value"
             fi
         fi
+        __bp_store_and_unset_ifs
     done
+    __bp_restore_ifs
 
     # Restore the last argument of the last executed command, and set the return
     # value of the DEBUG trap to be the return code of the last preexec function
