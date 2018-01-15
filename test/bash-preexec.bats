@@ -162,6 +162,26 @@ test_preexec_echo() {
     [[ "${lines[1]}" == "two" ]]
 }
 
+@test "preexec should execute a function with IFS defined to local scope" {
+    IFS=_
+    name_with_underscores_1() { parts=(1_2); echo $parts; }
+    preexec_functions+=(name_with_underscores_1)
+
+    __bp_interactive_mode
+    run '__bp_preexec_invoke_exec'
+    [[ $status == 0 ]]
+    [[ "$output" == "1 2" ]]
+}
+
+@test "precmd should execute a function with IFS defined to local scope" {
+    IFS=_
+    name_with_underscores_2() { parts=(2_2); echo $parts; }
+    precmd_functions+=(name_with_underscores_2)
+    run '__bp_precmd_invoke_cmd'
+    [[ $status == 0 ]]
+    [[ "$output" == "2 2" ]]
+}
+
 @test "preexec should set \$? to be the exit code of preexec_functions" {
     return_nonzero() {
       return 1
