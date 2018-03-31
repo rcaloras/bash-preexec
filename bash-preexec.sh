@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # bash-preexec.sh -- Bash support for ZSH-like 'preexec' and 'precmd' functions.
 # https://github.com/rcaloras/bash-preexec
 #
