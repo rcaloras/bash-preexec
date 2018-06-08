@@ -274,7 +274,7 @@ __bp_install() {
 }
 
 # Sets our trap and __bp_install as part of our PROMPT_COMMAND to install
-# after our session has started. This allows bash-preexec to be inlucded
+# after our session has started. This allows bash-preexec to be included
 # at any point in our bash profile. Ideally we could set our trap inside
 # __bp_install, but if a trap already exists it'll only set locally to
 # the function.
