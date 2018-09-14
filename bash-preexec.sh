@@ -46,6 +46,17 @@ __bp_last_argument_prev_command="$_"
 __bp_inside_precmd=0
 __bp_inside_preexec=0
 
+# Fails if any of the given variables are readonly
+# Reference https://stackoverflow.com/a/4441178
+__bp_require_not_readonly() {
+  for var; do
+    if ! ( unset "$var" 2> /dev/null ); then
+      echo "bash-preexec requires write access to ${var}" >&2
+      return 1
+    fi
+  done
+}
+
 # Remove ignorespace and or replace ignoreboth from HISTCONTROL
 # so we can accurately invoke preexec with a command from our
 # history even if it starts with a space.
@@ -284,6 +295,10 @@ __bp_install_after_session_init() {
     if [[ -z "$BASH_VERSION" ]]; then
         return 1;
     fi
+
+    # bash-preexec needs to modify these variables in order to work correctly
+    # if it can't, just stop the installation
+    __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT || return
 
     # If there's an existing PROMPT_COMMAND capture it and convert it into a function
     # So it is preserved and invoked during precmd.

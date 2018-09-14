@@ -12,3 +12,9 @@
   [[ -n $(type -t __bp_install) ]]
 }
 
+@test "bp should stop installation if HISTTIMEFORMAT is readonly" {
+  readonly HISTTIMEFORMAT
+  run source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
+  [[ $status != 0 ]]
+  [[ "$output" =~ "HISTTIMEFORMAT" ]]
+}
