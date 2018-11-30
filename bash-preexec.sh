@@ -33,7 +33,7 @@
 #  either of these after bash-preexec has been installed it will most likely break.
 
 # Avoid duplicate inclusion
-if [[ "$__bp_imported" == "defined" ]]; then
+if [[ "${__bp_imported:-}" == "defined" ]]; then
     return 0
 fi
 __bp_imported="defined"
@@ -125,7 +125,7 @@ __bp_precmd_invoke_cmd() {
 # precmd functions. This is available for instance in zsh. We can simulate it in bash
 # by setting the value here.
 __bp_set_ret_value() {
-    return $1
+    return ${1:-}
 }
 
 __bp_in_prompt_command() {
@@ -134,7 +134,7 @@ __bp_in_prompt_command() {
     IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
 
     local trimmed_arg
-    trimmed_arg=$(__bp_trim_whitespace "$1")
+    trimmed_arg=$(__bp_trim_whitespace "${1:-}")
 
     local command
     for command in "${prompt_command_array[@]}"; do
@@ -156,7 +156,7 @@ __bp_in_prompt_command() {
 __bp_preexec_invoke_exec() {
     # Save the contents of $_ so that it can be restored later on.
     # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
-    __bp_last_argument_prev_command="$1"
+    __bp_last_argument_prev_command="${1:-}"
 
     # Don't invoke preexecs if we are inside of another preexec.
     if (( __bp_inside_preexec > 0 )); then
@@ -167,16 +167,16 @@ __bp_preexec_invoke_exec() {
     # Checks if the file descriptor is not standard out (i.e. '1')
     # __bp_delay_install checks if we're in test. Needed for bats to run.
     # Prevents preexec from being invoked for functions in PS1
-    if [[ ! -t 1 && -z "$__bp_delay_install" ]]; then
+    if [[ ! -t 1 && -z "${__bp_delay_install:-}" ]]; then
         return
     fi
 
-    if [[ -n "$COMP_LINE" ]]; then
+    if [[ -n "${COMP_LINE:-}" ]]; then
         # We're in the middle of a completer. This obviously can't be
         # an interactively issued command.
         return
     fi
-    if [[ -z "$__bp_preexec_interactive_mode" ]]; then
+    if [[ -z "${__bp_preexec_interactive_mode:-}" ]]; then
         # We're doing something related to displaying the prompt.  Let the
         # prompt set the title instead of me.
         return
@@ -186,12 +186,12 @@ __bp_preexec_invoke_exec() {
         # In other words, if you have a subshell like
         #   (sleep 1; sleep 2)
         # You want to see the 'sleep 2' as a set_command_title as well.
-        if [[ 0 -eq "$BASH_SUBSHELL" ]]; then
+        if [[ 0 -eq "${BASH_SUBSHELL:-}" ]]; then
             __bp_preexec_interactive_mode=""
         fi
     fi
 
-    if  __bp_in_prompt_command "$BASH_COMMAND"; then
+    if  __bp_in_prompt_command "${BASH_COMMAND:-}"; then
         # If we're executing something inside our prompt_command then we don't
         # want to call preexec. Bash prior to 3.1 can't detect this at all :/
         __bp_preexec_interactive_mode=""
@@ -219,7 +219,7 @@ __bp_preexec_invoke_exec() {
         # Only execute each function if it actually exists.
         # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
-            __bp_set_ret_value $__bp_last_ret_value
+            __bp_set_ret_value ${__bp_last_ret_value:-}
             # Quote our function invocation to prevent issues with IFS
             "$preexec_function" "$this_command"
             preexec_function_ret_value="$?"
@@ -240,14 +240,14 @@ __bp_preexec_invoke_exec() {
 
 __bp_install() {
     # Exit if we already have this installed.
-    if [[ "$PROMPT_COMMAND" == *"__bp_precmd_invoke_cmd"* ]]; then
+    if [[ "${PROMPT_COMMAND:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1;
     fi
 
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
-    local prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"$__bp_trap_string")
+    local prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
     unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
@@ -264,7 +264,7 @@ __bp_install() {
     # backgrounded subshell commands (e.g. (pwd)& ). Believe this is a bug in Bash.
     #
     # Disabling this by default. It can be enabled by setting this variable.
-    if [[ -n "$__bp_enable_subshells" ]]; then
+    if [[ -n "${__bp_enable_subshells:-}" ]]; then
 
         # Set so debug trap will work be invoked in subshells.
         set -o functrace > /dev/null 2>&1
@@ -292,7 +292,7 @@ __bp_install() {
 __bp_install_after_session_init() {
 
     # Make sure this is bash that's running this and return otherwise.
-    if [[ -z "$BASH_VERSION" ]]; then
+    if [[ -z "${BASH_VERSION:-}" ]]; then
         return 1;
     fi
 
