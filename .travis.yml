@@ -3,7 +3,7 @@ language: bash
 before_install:
   # To install bats and test our shell/bash functions
   - git clone -b "v1.1.0" "https://github.com/bats-core/bats-core.git"
-  - sudo ./bats-core/install.sh
+  - sudo ./bats-core/install.sh /usr/local
   - rm -rf ./bats-core
   - sudo apt-get install -qq zsh
 
