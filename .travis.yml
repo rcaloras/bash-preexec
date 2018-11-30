@@ -13,7 +13,7 @@ env:
 
 # command to run tests
 script:
-  - bats test
+  - /usr/local/bin/bats test
 
 notifications:
   email:
