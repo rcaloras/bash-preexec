@@ -108,6 +108,22 @@ test_preexec_echo() {
     [[ "$output" == "251" ]]
 }
 
+@test "precmd should set \$BP_PIPESTATUS to the previous \$PIPESTATUS" {
+  echo_pipestatus() {
+    echo "${BP_PIPESTATUS[*]}"
+  }
+  # Helper function is necessary because Bats' run doesn't preserve $PIPESTATUS
+  set_pipestatus_and_run_precmd() {
+    false | true
+    __bp_precmd_invoke_cmd
+  }
+
+  precmd_functions+=(echo_pipestatus)
+  run 'set_pipestatus_and_run_precmd'
+  [[ $status == 0 ]]
+  [[ "$output" == "1 0" ]]
+}
+
 @test "precmd should set \$_ to be the previous last arg" {
     echo_last_arg() {
       echo "$_"
