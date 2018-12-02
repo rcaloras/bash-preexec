@@ -17,7 +17,7 @@ test_echo() {
 }
 
 test_preexec_echo() {
-  echo "$1"
+  printf "%s\n" "$1"
 }
 
 @test "__bp_install_after_session_init should exit with 1 if we're not using bash" {
@@ -244,4 +244,34 @@ test_preexec_echo() {
     run '__bp_preexec_invoke_exec'
     [[ $status == 0 ]]
     [[ "$output" == "$git_command" ]]
+}
+
+@test "preexec should not strip whitespace from commands" {
+    preexec_functions+=(test_preexec_echo)
+    __bp_interactive_mode
+    history -s " this command has whitespace "
+
+    run '__bp_preexec_invoke_exec'
+    [[ $status == 0 ]]
+    [[ "$output" == " this command has whitespace " ]]
+}
+
+@test "preexec should preserve multi-line strings in commands" {
+    preexec_functions+=(test_preexec_echo)
+    __bp_interactive_mode
+    history -s "this 'command contains
+a multiline string'"
+    run '__bp_preexec_invoke_exec'
+    [[ $status == 0 ]]
+    [[ "$output" == "this 'command contains
+a multiline string'" ]]
+}
+
+@test "preexec should work on options to 'echo' commands" {
+    preexec_functions+=(test_preexec_echo)
+    __bp_interactive_mode
+    history -s -- '-n'
+    run '__bp_preexec_invoke_exec'
+    [[ $status == 0 ]]
+    [[ "$output" == '-n' ]]
 }
