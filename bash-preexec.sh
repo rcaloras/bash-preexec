@@ -38,14 +38,6 @@ if [[ "$__bp_imported" == "defined" ]]; then
 fi
 __bp_imported="defined"
 
-# Should be available to each precmd and preexec
-# functions, should they want it.
-__bp_last_ret_value="$?"
-__bp_last_argument_prev_command="$_"
-
-__bp_inside_precmd=0
-__bp_inside_preexec=0
-
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
 __bp_require_not_readonly() {
@@ -102,7 +94,7 @@ __bp_precmd_invoke_cmd() {
     # Don't invoke precmds if we are inside an execution of an "original
     # prompt command" by another precmd execution loop. This avoids infinite
     # recursion.
-    if (( __bp_inside_precmd > 0 )); then
+    if (( ${__bp_inside_precmd:-0} > 0 )); then
       return
     fi
     local __bp_inside_precmd=1
@@ -159,7 +151,7 @@ __bp_preexec_invoke_exec() {
     __bp_last_argument_prev_command="$1"
 
     # Don't invoke preexecs if we are inside of another preexec.
-    if (( __bp_inside_preexec > 0 )); then
+    if (( ${__bp_inside_preexec:-0} > 0 )); then
       return
     fi
     local __bp_inside_preexec=1
