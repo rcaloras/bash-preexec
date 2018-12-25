@@ -39,8 +39,12 @@ fi
 __bp_imported="defined"
 
 # Should be available to each precmd and preexec
-# functions, should they want it.
+# functions, should they want it. $? and $_ are available as $? and $_, but
+# $PIPESTATUS is available only in a copy, $BP_PIPESTATUS.
+# TODO: Figure out how to restore PIPESTATUS before each precmd or preexec
+# function.
 __bp_last_ret_value="$?"
+BP_PIPESTATUS=("${PIPESTATUS[@]}")
 __bp_last_argument_prev_command="$_"
 
 __bp_inside_precmd=0
@@ -95,9 +99,9 @@ __bp_interactive_mode() {
 # This function is installed as part of the PROMPT_COMMAND.
 # It will invoke any functions defined in the precmd_functions array.
 __bp_precmd_invoke_cmd() {
-    # Save the returned value from our last command. Note: this MUST be the
-    # first thing done in this function.
-    __bp_last_ret_value="$?"
+    # Save the returned value from our last command, and from each process in
+    # its pipeline. Note: this MUST be the first thing done in this function.
+    __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
     # Don't invoke precmds if we are inside an execution of an "original
     # prompt command" by another precmd execution loop. This avoids infinite
