@@ -202,7 +202,7 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    this_command=$(HISTTIMEFORMAT= builtin history 1 | sed -E '1 s/^ *[0-9]+[* ] //')
+    this_command=$(HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9]\+[* ] //')
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
