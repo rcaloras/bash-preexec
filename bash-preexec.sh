@@ -203,6 +203,7 @@ __bp_preexec_invoke_exec() {
 
     local this_command
     this_command=$(
+        export LC_ALL=C
         HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
     )
 
