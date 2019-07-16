@@ -51,6 +51,7 @@ __bp_imported="defined"
 __bp_last_ret_value="$?"
 BP_PIPESTATUS=("${PIPESTATUS[@]}")
 __bp_last_argument_prev_command="$_"
+__bp_ignorespace=
 
 __bp_inside_precmd=0
 __bp_inside_preexec=0
@@ -70,15 +71,25 @@ __bp_require_not_readonly() {
   done
 }
 
-# Remove ignorespace and or replace ignoreboth from HISTCONTROL
-# so we can accurately invoke preexec with a command from our
-# history even if it starts with a space.
+# Remove ignorespace and or replace ignoreboth from HISTCONTROL so we can
+# accurately invoke preexec with a command from our history even if it starts
+# with a space.  We then remove commands that start with a space from the
+# history "manually", if either "ignorespace" or "ignoreboth" was part of
+# HISTCONTROL.
 __bp_adjust_histcontrol() {
     local histcontrol
-    histcontrol="${HISTCONTROL//ignorespace}"
+    if [[ "$HISTCONTROL" == *"ignorespace"* || "$HISTCONTROL" == *"ignoreboth"* ]]; then
+      __bp_ignorespace=yes
+    fi
+    histcontrol="${HISTCONTROL//ignorespace:}"
+    histcontrol="${histcontrol//:ignorespace}"
+    histcontrol="${histcontrol//ignorespace}"
     # Replace ignoreboth with ignoredups
     if [[ "$histcontrol" == *"ignoreboth"* ]]; then
-        histcontrol="ignoredups:${histcontrol//ignoreboth}"
+        histcontrol="${histcontrol//ignoreboth:}"
+        histcontrol="${histcontrol//:ignoreboth}"
+        histcontrol="${histcontrol//ignoreboth}"
+        histcontrol="ignoredups${histcontrol:+:}${histcontrol}"
     fi;
     export HISTCONTROL="$histcontrol"
 }
@@ -237,6 +248,23 @@ __bp_preexec_invoke_exec() {
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
         return
+    fi
+
+    # If we have removed "ignorespace" or "ignoreboth" from HISTCONTROL
+    # during setup, we need to remove commands that start with a space from
+    # the history ourselves.
+
+    # With bash 5.0 or above, we could have just ran
+    #
+    #   builtin history -d -1
+    #
+    # Negative indices for `-d` are not supported before 5.0, so we need to
+    # do some computation ourselves.
+    if [[ -n "$__bp_ignorespace" && "$this_command" == " "* ]]; then
+        builtin history -d "$(
+            export LC_ALL=C
+            HISTTIMEFORMAT= history 1 | sed '1 s/^ *\([0-9][0-9]*\).*/\1/'
+        )"
     fi
 
     # Invoke every function defined in our function array.
