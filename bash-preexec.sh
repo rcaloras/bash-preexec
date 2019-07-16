@@ -66,6 +66,7 @@ __bp_imported="${bash_preexec_imported}"
 __bp_last_ret_value="$?"
 BP_PIPESTATUS=("${PIPESTATUS[@]}")
 __bp_last_argument_prev_command="$_"
+__bp_ignorespace=
 
 __bp_inside_precmd=0
 __bp_inside_preexec=0
@@ -85,18 +86,26 @@ __bp_require_not_readonly() {
     done
 }
 
-# Remove ignorespace and or replace ignoreboth from HISTCONTROL
-# so we can accurately invoke preexec with a command from our
-# history even if it starts with a space.
+# Remove "ignorespace" and/or replace "ignoreboth" in HISTCONTROL so we can
+# accurately invoke preexec with a command from our history even if it starts
+# with a space.  We then remove commands that start with a space from the
+# history "manually", if either "ignorespace" or "ignoreboth" was part of
+# HISTCONTROL.
 __bp_adjust_histcontrol() {
     local histcontrol
-    histcontrol="${HISTCONTROL:-}"
-    histcontrol="${histcontrol//ignorespace}"
-    # Replace ignoreboth with ignoredups
-    if [[ "$histcontrol" == *"ignoreboth"* ]]; then
-        histcontrol="ignoredups:${histcontrol//ignoreboth}"
+    histcontrol=${HISTCONTROL:-}
+    histcontrol=":${histcontrol//:/::}:"
+
+    if [[ "$histcontrol" == *":ignorespace:"* || "$histcontrol" == *":ignoreboth:"* ]]; then
+        __bp_ignorespace=yes
     fi
-    export HISTCONTROL="$histcontrol"
+
+    histcontrol=${histcontrol//:ignorespace:}
+    histcontrol=${histcontrol//:ignoreboth:/:ignoredups:}
+
+    histcontrol=${histcontrol//::/:}
+    histcontrol=${histcontrol#:}
+    export HISTCONTROL=${histcontrol%:}
 }
 
 # This variable describes whether we are currently in "interactive mode";
@@ -256,6 +265,23 @@ __bp_preexec_invoke_exec() {
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
         return
+    fi
+
+    # If we have removed "ignorespace" or "ignoreboth" from HISTCONTROL
+    # during setup, we need to remove commands that start with a space from
+    # the history ourselves.
+
+    # With bash 5.0 or above, we could have just ran
+    #
+    #   builtin history -d -1
+    #
+    # Negative indices for `-d` are not supported before 5.0, so we compute the
+    # length of the history list explicit, to delete the last entry.
+    if [[ -n "$__bp_ignorespace" && "$this_command" == " "* ]]; then
+        builtin history -d "$(
+            export LC_ALL=C
+            HISTTIMEFORMAT='' history 1 | sed '1 s/^ *\([0-9][0-9]*\).*/\1/'
+        )"
     fi
 
     # Invoke every function defined in our function array.
