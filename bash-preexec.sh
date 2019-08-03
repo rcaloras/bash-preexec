@@ -53,6 +53,7 @@ __bp_inside_preexec=0
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
 __bp_require_not_readonly() {
+  local var
   for var; do
     if ! ( unset "$var" 2> /dev/null ); then
       echo "bash-preexec requires write access to ${var}" >&2
