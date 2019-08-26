@@ -92,7 +92,7 @@ export __bp_enable_subshells="true"
 This is disabled by default due to buggy situations related to to `functrace` and Bash's `DEBUG trap`. See [Issue #25](https://github.com/rcaloras/bash-preexec/issues/25)
 
 ## Tests
-You can run tests using [Bats](https://github.com/sstephenson/bats).
+You can run tests using [Bats](https://github.com/bats-core/bats-core).
 ```bash
 bats test
 ```
