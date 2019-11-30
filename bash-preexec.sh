@@ -309,7 +309,7 @@ __bp_install_after_session_init() {
 
     # If there's an existing PROMPT_COMMAND capture it and convert it into a function
     # So it is preserved and invoked during precmd.
-    if [[ -n "$PROMPT_COMMAND" ]]; then
+    if [[ -n "${PROMPT_COMMAND:-}" ]]; then
       eval '__bp_original_prompt_command() {
         '"$PROMPT_COMMAND"'
       }'
@@ -325,6 +325,6 @@ __bp_install_after_session_init() {
 }
 
 # Run our install so long as we're not delaying it.
-if [[ -z "$__bp_delay_install" ]]; then
+if [[ -z "${__bp_delay_install:-}" ]]; then
     __bp_install_after_session_init
 fi;
