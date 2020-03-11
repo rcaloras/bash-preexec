@@ -321,7 +321,7 @@ __bp_install_after_session_init() {
     # invoked once.
     # It's necessary to clear any existing DEBUG trap in order to set it from the install function.
     # Using \n as it's the most universal delimiter of bash commands
-    PROMPT_COMMAND=$'\n__bp_trap_string="$(trap -p DEBUG)"\ntrap DEBUG\n__bp_install\n'
+    PROMPT_COMMAND=$'\n__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install\n'
 }
 
 # Run our install so long as we're not delaying it.
