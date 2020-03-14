@@ -39,7 +39,7 @@ test_preexec_echo() {
 @test "__bp_install should remove trap logic and itself from PROMPT_COMMAND" {
   __bp_install_after_session_init
 
-  [[ "$PROMPT_COMMAND" == *"trap DEBUG"* ]] || return 1
+  [[ "$PROMPT_COMMAND" == *"trap - DEBUG"* ]] || return 1
   [[ "$PROMPT_COMMAND" == *"__bp_install"* ]] || return 1
 
   eval "$PROMPT_COMMAND"
