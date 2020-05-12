@@ -138,7 +138,7 @@ __bp_set_ret_value() {
 # trigger through the DEBUG trap twice.
 __bp_set_last_command() {
     __bp_last_command="$1"
- }
+}
 
 __bp_in_prompt_command() {
 
@@ -253,7 +253,7 @@ __bp_preexec_invoke_exec() {
     # If `extdebug` is enabled a non-zero return value from any preexec function
     # will cause the user's command not to execute.
     # Run `shopt -s extdebug` to enable
-    __bp_set_last_command "this_command"
+    __bp_set_last_command "$this_command"
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
 
