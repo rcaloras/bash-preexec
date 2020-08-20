@@ -68,10 +68,43 @@ test_preexec_echo() {
   (( trap_count_snapshot < trap_invoked_count ))
 }
 
-@test "PROMPT_COMMAND=\"\$PROMPT_COMMAND; foo\" should work" {
+@test "__bp_sanitize_string should remove semicolons and trim space" {
+
+    run '__bp_sanitize_string' "   true1;  "$'\n'
+    [ $status -eq 0 ]
+    [ "$output" == "true1" ]
+
+    run '__bp_sanitize_string' " ; true2;  "
+    [ $status -eq 0 ]
+    [ "$output" == "true2" ]
+
+     run '__bp_sanitize_string' $'\n' " ; true3;  "
+    [ $status -eq 0 ]
+    [ "$output" == "true3" ]
+
+}
+
+@test "Appending to PROMPT_COMMAND should work after bp_install" {
     bp_install
 
     PROMPT_COMMAND="$PROMPT_COMMAND; true"
+    eval "$PROMPT_COMMAND"
+}
+
+# Case where a user is appending or prepending to PROMPT_COMMAND.
+# This can happen after 'source bash-preexec.sh' e.g.
+# source bash-preexec.sh; PROMPT_COMMAND="$PROMPT_COMMAND; other_prompt_command_hook"
+#
+@test "Appending or prepending to PROMPT_COMMAND should work after bp_install_after_session_init" {
+    __bp_install_after_session_init
+    nl=$'\n'
+    PROMPT_COMMAND="$PROMPT_COMMAND; true"
+    PROMPT_COMMAND="$PROMPT_COMMAND $nl true"
+    PROMPT_COMMAND="$PROMPT_COMMAND; true"
+    PROMPT_COMMAND="true; $PROMPT_COMMAND"
+    PROMPT_COMMAND="true; $PROMPT_COMMAND"
+    PROMPT_COMMAND="true; $PROMPT_COMMAND"
+    PROMPT_COMMAND="true $nl $PROMPT_COMMAND"
     eval "$PROMPT_COMMAND"
 }
 
