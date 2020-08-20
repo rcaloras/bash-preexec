@@ -262,7 +262,6 @@ __bp_preexec_invoke_exec() {
 }
 
 __bp_install() {
-
     # Exit if we already have this installed.
     if [[ "${PROMPT_COMMAND:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1;
@@ -295,7 +294,6 @@ __bp_install() {
     fi;
 
     local __bp_existing_prompt_command
-
     # Remove setting our trap install string and sanitize the existing prompt command string
     __bp_existing_prompt_command="${PROMPT_COMMAND//$__bp_install_string;}" # Edge case of appending to front of PROMPT_COMMAND
     __bp_existing_prompt_command="${__bp_existing_prompt_command//$__bp_install_string}"
