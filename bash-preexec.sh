@@ -50,6 +50,9 @@ __bp_last_argument_prev_command="$_"
 __bp_inside_precmd=0
 __bp_inside_preexec=0
 
+# Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
+__bp_install_string=$'\n__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
 __bp_require_not_readonly() {
@@ -87,6 +90,19 @@ __bp_trim_whitespace() {
     var="${var#"${var%%[![:space:]]*}"}"   # remove leading whitespace characters
     var="${var%"${var##*[![:space:]]}"}"   # remove trailing whitespace characters
     echo -n "$var"
+}
+
+
+# Returns a copy of the passed in string trimmed of whitespace
+# and removes any leading or trailing semi colons.
+# Used for manipulating substrings in PROMPT_COMMAND
+__bp_sanitize_string() {
+    local sanitized_string
+    sanitized_string=$(__bp_trim_whitespace "${1:-}")
+    sanitized_string=${sanitized_string%;}
+    sanitized_string=${sanitized_string#;}
+    sanitized_string=$(__bp_trim_whitespace "$sanitized_string")
+    echo -n "$sanitized_string"
 }
 
 # This function is installed as part of the PROMPT_COMMAND;
@@ -246,6 +262,7 @@ __bp_preexec_invoke_exec() {
 }
 
 __bp_install() {
+
     # Exit if we already have this installed.
     if [[ "${PROMPT_COMMAND:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1;
@@ -266,7 +283,6 @@ __bp_install() {
     # Adjust our HISTCONTROL Variable if needed.
     __bp_adjust_histcontrol
 
-
     # Issue #25. Setting debug trap for subshells causes sessions to exit for
     # backgrounded subshell commands (e.g. (pwd)& ). Believe this is a bug in Bash.
     #
@@ -278,9 +294,20 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi;
 
+    local __bp_existing_prompt_command
+
+    # Remove setting our trap install string and sanitize the existing prompt command string
+    __bp_existing_prompt_command="${PROMPT_COMMAND//$__bp_install_string;}" # Edge case of appending to front of PROMPT_COMMAND
+    __bp_existing_prompt_command="${__bp_existing_prompt_command//$__bp_install_string}"
+    __bp_existing_prompt_command=$(__bp_sanitize_string "$__bp_existing_prompt_command")
+
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    PROMPT_COMMAND="__bp_precmd_invoke_cmd; __bp_interactive_mode"
+    PROMPT_COMMAND=$'__bp_precmd_invoke_cmd\n'
+    if [[ -n "$__bp_existing_prompt_command" ]]; then
+        PROMPT_COMMAND+=${__bp_existing_prompt_command}$'\n'
+    fi;
+    PROMPT_COMMAND+='__bp_interactive_mode'
 
     # Add two functions to our arrays for convenience
     # of definition.
@@ -291,11 +318,9 @@ __bp_install() {
     eval "$PROMPT_COMMAND"
 }
 
-# Sets our trap and __bp_install as part of our PROMPT_COMMAND to install
+# Sets an installation string as part of our PROMPT_COMMAND to install
 # after our session has started. This allows bash-preexec to be included
-# at any point in our bash profile. Ideally we could set our trap inside
-# __bp_install, but if a trap already exists it'll only set locally to
-# the function.
+# at any point in our bash profile.
 __bp_install_after_session_init() {
 
     # Make sure this is bash that's running this and return otherwise.
@@ -307,21 +332,9 @@ __bp_install_after_session_init() {
     # if it can't, just stop the installation
     __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT || return
 
-    # If there's an existing PROMPT_COMMAND capture it and convert it into a function
-    # So it is preserved and invoked during precmd.
-    if [[ -n "${PROMPT_COMMAND:-}" ]]; then
-      eval '__bp_original_prompt_command() {
-        '"$PROMPT_COMMAND"'
-      }'
-      precmd_functions+=(__bp_original_prompt_command)
-    fi
-
-    # Installation is finalized in PROMPT_COMMAND, which allows us to override the DEBUG
-    # trap. __bp_install sets PROMPT_COMMAND to its final value, so these are only
-    # invoked once.
-    # It's necessary to clear any existing DEBUG trap in order to set it from the install function.
-    # Using \n as it's the most universal delimiter of bash commands
-    PROMPT_COMMAND=$'\n__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install\n'
+    local sanitized_prompt_command
+    sanitized_prompt_command=$(__bp_sanitize_string "$PROMPT_COMMAND")
+    PROMPT_COMMAND="${sanitized_prompt_command}${__bp_install_string}"
 }
 
 # Run our install so long as we're not delaying it.
