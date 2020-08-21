@@ -78,7 +78,7 @@ test_preexec_echo() {
     [ $status -eq 0 ]
     [ "$output" == "true2" ]
 
-     run '__bp_sanitize_string' $'\n' " ; true3;  "
+     run '__bp_sanitize_string' $'\n'" ; true3;  "
     [ $status -eq 0 ]
     [ "$output" == "true3" ]
 
@@ -91,10 +91,6 @@ test_preexec_echo() {
     eval "$PROMPT_COMMAND"
 }
 
-# Case where a user is appending or prepending to PROMPT_COMMAND.
-# This can happen after 'source bash-preexec.sh' e.g.
-# source bash-preexec.sh; PROMPT_COMMAND="$PROMPT_COMMAND; other_prompt_command_hook"
-#
 @test "Appending or prepending to PROMPT_COMMAND should work after bp_install_after_session_init" {
     __bp_install_after_session_init
     nl=$'\n'
@@ -106,6 +102,21 @@ test_preexec_echo() {
     PROMPT_COMMAND="true; $PROMPT_COMMAND"
     PROMPT_COMMAND="true $nl $PROMPT_COMMAND"
     eval "$PROMPT_COMMAND"
+}
+
+# Case where a user is appending or prepending to PROMPT_COMMAND.
+# This can happen after 'source bash-preexec.sh' e.g.
+# source bash-preexec.sh; PROMPT_COMMAND="$PROMPT_COMMAND; other_prompt_command_hook"
+@test "Adding to PROMPT_COMMAND before and after initiating install" {
+    PROMPT_COMMAND="echo before"
+    PROMPT_COMMAND="$PROMPT_COMMAND; echo before2"
+    __bp_install_after_session_init
+    PROMPT_COMMAND="$PROMPT_COMMAND; echo after"
+    PROMPT_COMMAND="echo after2; $PROMPT_COMMAND;"
+    eval "$PROMPT_COMMAND"
+
+    expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
+    [ "$PROMPT_COMMAND" == "$expected_result" ]
 }
 
 @test "No functions defined for preexec should simply return" {
