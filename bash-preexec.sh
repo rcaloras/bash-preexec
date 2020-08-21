@@ -295,7 +295,7 @@ __bp_install() {
 
     local __bp_existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
-    __bp_existing_prompt_command="${PROMPT_COMMAND//$__bp_install_string;}" # Edge case of appending to front of PROMPT_COMMAND
+    __bp_existing_prompt_command="${PROMPT_COMMAND//$__bp_install_string;}" # Edge case of appending to PROMPT_COMMAND with ';'
     __bp_existing_prompt_command="${__bp_existing_prompt_command//$__bp_install_string}"
     __bp_existing_prompt_command=$(__bp_sanitize_string "$__bp_existing_prompt_command")
 
