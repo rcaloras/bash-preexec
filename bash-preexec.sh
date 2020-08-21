@@ -51,7 +51,7 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
-__bp_install_string=$'\n__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+__bp_install_string=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
 
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
@@ -332,7 +332,10 @@ __bp_install_after_session_init() {
 
     local sanitized_prompt_command
     sanitized_prompt_command=$(__bp_sanitize_string "$PROMPT_COMMAND")
-    PROMPT_COMMAND="${sanitized_prompt_command}${__bp_install_string}"
+    if [[ -n "$sanitized_prompt_command" ]]; then
+        PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
+    fi;
+    PROMPT_COMMAND+=${__bp_install_string}
 }
 
 # Run our install so long as we're not delaying it.
