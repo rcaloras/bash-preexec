@@ -111,12 +111,41 @@ test_preexec_echo() {
     PROMPT_COMMAND="echo before"
     PROMPT_COMMAND="$PROMPT_COMMAND; echo before2"
     __bp_install_after_session_init
-    PROMPT_COMMAND="$PROMPT_COMMAND; echo after"
+    PROMPT_COMMAND="$PROMPT_COMMAND"$'\n echo after'
     PROMPT_COMMAND="echo after2; $PROMPT_COMMAND;"
+
     eval "$PROMPT_COMMAND"
 
     expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
     [ "$PROMPT_COMMAND" == "$expected_result" ]
+}
+
+@test "Adding to PROMPT_COMMAND after with semicolon" {
+    PROMPT_COMMAND="echo before"
+    __bp_install_after_session_init
+    PROMPT_COMMAND="$PROMPT_COMMAND; echo after"
+
+    eval "$PROMPT_COMMAND"
+
+    expected_result=$'__bp_precmd_invoke_cmd\necho before\n echo after\n__bp_interactive_mode'
+    [ "$PROMPT_COMMAND" == "$expected_result" ]
+}
+
+@test "during install PROMPT_COMMAND and precmd functions should be executed each once" {
+    PROMPT_COMMAND="echo before"
+    PROMPT_COMMAND="$PROMPT_COMMAND; echo before2"
+    __bp_install_after_session_init
+    PROMPT_COMMAND="$PROMPT_COMMAND; echo after"
+    PROMPT_COMMAND="echo after2; $PROMPT_COMMAND;"
+
+    precmd() { echo "inside precmd"; }
+    run eval "$PROMPT_COMMAND"
+    [ "${lines[0]}" == "after2" ]
+    [ "${lines[1]}" == "before" ]
+    [ "${lines[2]}" == "before2" ]
+    [ "${lines[3]}" == "inside precmd" ]
+    [ "${lines[4]}" == "after" ]
+    [ "${#lines[@]}" == '5' ]
 }
 
 @test "No functions defined for preexec should simply return" {
@@ -257,7 +286,7 @@ test_preexec_echo() {
 
 @test "in_prompt_command should detect if a command is part of PROMPT_COMMAND" {
 
-    PROMPT_COMMAND="precmd_invoke_cmd; something;"
+    PROMPT_COMMAND=$'precmd_invoke_cmd\n something; echo yo\n __bp_interactive_mode'
     run '__bp_in_prompt_command' "something"
     [ $status -eq 0 ]
 

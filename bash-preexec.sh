@@ -152,7 +152,7 @@ __bp_set_ret_value() {
 __bp_in_prompt_command() {
 
     local prompt_command_array
-    IFS=';' read -ra prompt_command_array <<< "$PROMPT_COMMAND"
+    IFS=$'\n;' read -rd '' -a prompt_command_array <<< "$PROMPT_COMMAND"
 
     local trimmed_arg
     trimmed_arg=$(__bp_trim_whitespace "${1:-}")
@@ -175,6 +175,7 @@ __bp_in_prompt_command() {
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
+
     # Save the contents of $_ so that it can be restored later on.
     # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
     __bp_last_argument_prev_command="${1:-}"
@@ -295,7 +296,7 @@ __bp_install() {
 
     local __bp_existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
-    __bp_existing_prompt_command="${PROMPT_COMMAND//$__bp_install_string;}" # Edge case of appending to PROMPT_COMMAND with ';'
+    __bp_existing_prompt_command="${PROMPT_COMMAND//$__bp_install_string[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
     __bp_existing_prompt_command="${__bp_existing_prompt_command//$__bp_install_string}"
     __bp_existing_prompt_command=$(__bp_sanitize_string "$__bp_existing_prompt_command")
 
@@ -312,8 +313,9 @@ __bp_install() {
     precmd_functions+=(precmd)
     preexec_functions+=(preexec)
 
-    # Since this function is invoked via PROMPT_COMMAND, re-execute PC now that it's properly set
-    eval "$PROMPT_COMMAND"
+    # Invoke our two functions manually that were added to $PROMPT_COMMAND
+    __bp_precmd_invoke_cmd
+    __bp_interactive_mode
 }
 
 # Sets an installation string as part of our PROMPT_COMMAND to install
