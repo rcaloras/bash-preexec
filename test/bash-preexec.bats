@@ -70,16 +70,13 @@ test_preexec_echo() {
 
 @test "__bp_sanitize_string should remove semicolons and trim space" {
 
-    run '__bp_sanitize_string' "   true1;  "$'\n'
-    [ $status -eq 0 ]
+    __bp_sanitize_string output "   true1;  "$'\n'
     [ "$output" == "true1" ]
 
-    run '__bp_sanitize_string' " ; true2;  "
-    [ $status -eq 0 ]
+    __bp_sanitize_string output " ; true2;  "
     [ "$output" == "true2" ]
 
-     run '__bp_sanitize_string' $'\n'" ; true3;  "
-    [ $status -eq 0 ]
+    __bp_sanitize_string output $'\n'" ; true3;  "
     [ "$output" == "true3" ]
 
 }
