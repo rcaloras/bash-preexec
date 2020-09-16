@@ -21,6 +21,11 @@ test_preexec_echo() {
   printf "%s\n" "$1"
 }
 
+# This function is used when you need a non-zero return, as zero is the default
+test_preexec_ret_error() {
+  return 1
+}
+
 @test "__bp_install_after_session_init should exit with 1 if we're not using bash" {
   unset BASH_VERSION
   run '__bp_install_after_session_init'
@@ -361,4 +366,22 @@ a multiline string'" ]
     run '__bp_preexec_invoke_exec'
     [ $status -eq 0 ]
     [ "$output" == '-n' ]
+}
+
+@test "preexec should trigger when several processes are executed, from the same interactive CLI command" {
+    preexec_functions+=(test_preexec_ret_error)
+    history -s -- 'ls;ls'
+    __bp_interactive_mode
+    run '__bp_preexec_invoke_exec'
+    # __bp_interactive_mode is now set to empty string, but history still matches
+    # so we should still be running the preexec hook when the second `ls` runs.
+    run '__bp_preexec_invoke_exec'
+    [ $status -eq 1 ]
+
+    # We should now exit without running the preexec hook
+    # which results in the return defaulting to 0.
+    __bp_preexec_interactive_mode=""
+    __bp_last_command=""
+    run '__bp_preexec_invoke_exec'
+    [ $status -eq 0 ]
 }

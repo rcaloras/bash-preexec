@@ -151,6 +151,13 @@ __bp_set_ret_value() {
     return ${1:-}
 }
 
+# Sets the last command we ran. This is used to check if we're still executing
+# the same command at the next run of preexec (e.g. for `ls ; ls` we will
+# trigger through the DEBUG trap twice.
+__bp_set_last_command() {
+    __bp_last_command="$1"
+}
+
 __bp_in_prompt_command() {
 
     local prompt_command_array
@@ -197,9 +204,18 @@ __bp_preexec_invoke_exec() {
         # an interactively issued command.
         return
     fi
-    if [[ -z "${__bp_preexec_interactive_mode:-}" ]]; then
-        # We're doing something related to displaying the prompt.  Let the
-        # prompt set the title instead of me.
+
+    local this_command
+    this_command=$(
+        export LC_ALL=C
+        HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
+    )
+
+    if [[ -z "${__bp_preexec_interactive_mode:-}" && \
+          "$this_command" != "$__bp_last_command" ]]; then
+        # We're doing something related to displaying the prompt and this
+        # isn't a follow-up to our last command, let the prompt set the
+        # title instead of me.
         return
     else
         # If we're in a subshell, then the prompt won't be re-displayed to put
@@ -219,12 +235,6 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
-    local this_command
-    this_command=$(
-        export LC_ALL=C
-        HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
-    )
-
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
         return
@@ -239,6 +249,7 @@ __bp_preexec_invoke_exec() {
         # Only execute each function if it actually exists.
         # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
+            __bp_set_last_command "$this_command"
             __bp_set_ret_value ${__bp_last_ret_value:-}
             # Quote our function invocation to prevent issues with IFS
             "$preexec_function" "$this_command"
@@ -255,6 +266,7 @@ __bp_preexec_invoke_exec() {
     # If `extdebug` is enabled a non-zero return value from any preexec function
     # will cause the user's command not to execute.
     # Run `shopt -s extdebug` to enable
+    __bp_set_last_command "$this_command"
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
 
