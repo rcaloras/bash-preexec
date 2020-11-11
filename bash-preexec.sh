@@ -32,6 +32,11 @@
 #  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. If you override
 #  either of these after bash-preexec has been installed it will most likely break.
 
+# Make sure this is bash that's running and return otherwise.
+if [[ -z "${BASH_VERSION:-}" ]]; then
+    return 1;
+fi
+
 # Avoid duplicate inclusion
 if [[ "${__bp_imported:-}" == "defined" ]]; then
     return 0
@@ -318,11 +323,6 @@ __bp_install() {
 # after our session has started. This allows bash-preexec to be included
 # at any point in our bash profile.
 __bp_install_after_session_init() {
-    # Make sure this is bash that's running this and return otherwise.
-    if [[ -z "${BASH_VERSION:-}" ]]; then
-        return 1;
-    fi
-
     # bash-preexec needs to modify these variables in order to work correctly
     # if it can't, just stop the installation
     __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT || return

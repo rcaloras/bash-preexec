@@ -21,9 +21,9 @@ test_preexec_echo() {
   printf "%s\n" "$1"
 }
 
-@test "__bp_install_after_session_init should exit with 1 if we're not using bash" {
+@test "sourcing bash-preexec should exit with 1 if we're not using bash" {
   unset BASH_VERSION
-  run '__bp_install_after_session_init'
+  run source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
   [ $status -eq 1 ]
   [ -z "$output" ]
 }
