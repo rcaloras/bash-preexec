@@ -90,6 +90,10 @@ __bp_adjust_histcontrol() {
 # and unset as soon as the trace hook is run.
 __bp_preexec_interactive_mode=""
 
+# These arrays are used to add functions to be run before, or after, prompts.
+declare -a precmd_functions
+declare -a preexec_functions
+
 # Trims leading and trailing whitespace from $2 and writes it to the variable
 # name passed as $1
 __bp_trim_whitespace() {
