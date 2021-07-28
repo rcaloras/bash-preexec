@@ -97,8 +97,6 @@ This is disabled by default due to buggy situations related to to `functrace` an
 
 In order to be able to provide the last command text to the `preexec` hook, this script will remove `ignorespace` and/or will replace `ignoreboth` with `ignoredups` in your `HISTCONTROL` variable.  It will remember if `HISTCONTROL` has been modified and will remove the last command from the history "manually", after reading the last command from the history list.  This may cause issues when you have scripts that rely on the literal value of `HISTCONTROL` or manipulate history in their own ways.
 
-Unfortunately, this only works with Bash 5.0 and above.  In older version of Bash, `ignorespace` and `ignoreboth` will be just silently ignored.
-
 ## Tests
 You can run tests using [Bats](https://github.com/bats-core/bats-core).
 ```bash

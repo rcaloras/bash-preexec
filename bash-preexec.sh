@@ -65,7 +65,7 @@ __bp_require_not_readonly() {
   local var
   for var; do
     if ! ( unset "$var" 2> /dev/null ); then
-      echo "bash-preexec requires write access to ${var}" >&2
+      echo "${BASH_SOURCE##*/} requires write access to ${var}" >&2
       return 1
     fi
   done
@@ -91,7 +91,7 @@ __bp_adjust_histcontrol() {
         histcontrol="${histcontrol//ignoreboth}"
         histcontrol="ignoredups${histcontrol:+:}${histcontrol}"
     fi;
-    export HISTCONTROL="$histcontrol"
+    HISTCONTROL="$histcontrol"
 }
 
 # This variable describes whether we are currently in "interactive mode";
@@ -214,8 +214,7 @@ __bp_preexec_invoke_exec() {
         return
     fi
     if [[ -z "${__bp_preexec_interactive_mode:-}" ]]; then
-        # We're doing something related to displaying the prompt.  Let the
-        # prompt set the title instead of me.
+        # We're doing something related to displaying the prompt. 
         return
     else
         # If we're in a subshell, then the prompt won't be re-displayed to put
@@ -236,10 +235,13 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    this_command=$(
-        export LC_ALL=C
-        HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
-    )
+    if [[ "$HISTCONTROL" == *ignore+(both|space)* ]]
+    then
+        this_command="${BASH_COMMAND:-}"
+        local __bp_ignorespace=
+    else
+        this_command="$( HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //' )"
+    fi
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
@@ -249,13 +251,8 @@ __bp_preexec_invoke_exec() {
     # If we have remove "ignorespace" or "ignoreboth" from HISTCONTROL during
     # setup, we need to remove commands that start with a space from the
     # history ourselves.
-
-    # Unfortunately, we need bash 5.0 or above, as "history -d" does not
-    # support negative indices in earlier versions and HISTCMD seems to be
-    # unreliable.  At least in the unit tests HISTCMD is just set to 1, after
-    # any number of "history -s" calls.
-    if [[ "${BASH_VERSINFO:-0}" -ge 5 && -n "$__bp_ignorespace" && "$this_command" == " "* ]]; then
-      builtin history -d -1
+    if [[ -n "${__bp_ignorespace:-}" && "$this_command" == " "* ]]; then
+      history -d "$(HISTTIMEFORMAT= builtin history 1 | sed -r '1 s/^ *([0-9][0-9]*)[* ] .*$/\1/')"
     fi
 
     # Invoke every function defined in our function array.
@@ -265,7 +262,6 @@ __bp_preexec_invoke_exec() {
     for preexec_function in "${preexec_functions[@]:-}"; do
 
         # Only execute each function if it actually exists.
-        # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
             __bp_set_ret_value ${__bp_last_ret_value:-}
             # Quote our function invocation to prevent issues with IFS
