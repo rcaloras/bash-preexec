@@ -51,6 +51,7 @@ __bp_imported="defined"
 __bp_last_ret_value="$?"
 BP_PIPESTATUS=("${PIPESTATUS[@]}")
 __bp_last_argument_prev_command="$_"
+__bp_ignorespace=
 
 __bp_inside_precmd=0
 __bp_inside_preexec=0
@@ -70,15 +71,25 @@ __bp_require_not_readonly() {
   done
 }
 
-# Remove ignorespace and or replace ignoreboth from HISTCONTROL
-# so we can accurately invoke preexec with a command from our
-# history even if it starts with a space.
+# Remove ignorespace and or replace ignoreboth from HISTCONTROL so we can
+# accurately invoke preexec with a command from our history even if it starts
+# with a space.  We then remove commands that start with a space from the
+# history "manually", if either "ignorespace" or "ignoreboth" was part of
+# HISTCONTROL.
 __bp_adjust_histcontrol() {
     local histcontrol
-    histcontrol="${HISTCONTROL//ignorespace}"
+    if [[ "$HISTCONTROL" == *"ignorespace"* || "$HISTCONTROL" == *"ignoreboth"* ]]; then
+      __bp_ignorespace=yes
+    fi
+    histcontrol="${HISTCONTROL//ignorespace:}"
+    histcontrol="${histcontrol//:ignorespace}"
+    histcontrol="${histcontrol//ignorespace}"
     # Replace ignoreboth with ignoredups
     if [[ "$histcontrol" == *"ignoreboth"* ]]; then
-        histcontrol="ignoredups:${histcontrol//ignoreboth}"
+        histcontrol="${histcontrol//ignoreboth:}"
+        histcontrol="${histcontrol//:ignoreboth}"
+        histcontrol="${histcontrol//ignoreboth}"
+        histcontrol="ignoredups${histcontrol:+:}${histcontrol}"
     fi;
     export HISTCONTROL="$histcontrol"
 }
@@ -233,6 +244,18 @@ __bp_preexec_invoke_exec() {
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
         return
+    fi
+
+    # If we have remove "ignorespace" or "ignoreboth" from HISTCONTROL during
+    # setup, we need to remove commands that start with a space from the
+    # history ourselves.
+
+    # Unfortunately, we need bash 5.0 or above, as "history -d" does not
+    # support negative indices in earlier versions and HISTCMD seems to be
+    # unreliable.  At least in the unit tests HISTCMD is just set to 1, after
+    # any number of "history -s" calls.
+    if [[ "${BASH_VERSINFO:-0}" -ge 5 && -n "$__bp_ignorespace" && "$this_command" == " "* ]]; then
+      builtin history -d -1
     fi
 
     # Invoke every function defined in our function array.
