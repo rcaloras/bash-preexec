@@ -81,7 +81,7 @@ __bp_adjust_histcontrol() {
         histcontrol="ignoredups:${histcontrol//ignoreboth}"
     fi;
 	
-	if [[ -z "${__bp_suppress_histcontrol_warning:-}" && "$HISTCONTROL" == *ignore+(dups|space)* ]]
+	if [[ -z "${__bp_suppress_histcontrol_warning:-}" && "$HISTCONTROL" == *ignore+(both|space)* ]]
 	then
 		echo "bash-preexec is unable to determine full command line when \$HISTCONTROL contains 'ignorespace' (or 'ignoreboth')." >&2
 		echo "Those options have been removed from \$HISTCONTROL." >&2
@@ -232,10 +232,12 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    this_command=$(
-        export LC_ALL=C
-        HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
-    )
+	if [[ "$HISTCONTROL" == *ignore+(both|space)* ]]
+	then
+		this_command="${BASH_COMMAND:-}"
+	else
+		this_command=$( LC_ALL=C HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //' )
+	fi
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
