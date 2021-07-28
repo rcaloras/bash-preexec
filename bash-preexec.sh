@@ -235,7 +235,7 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    if [[ "$HISTCONTROL" == *ignore+(both|space)* ]]
+    if [[ "$HISTCONTROL" == *"ignorespace"* || "$HISTCONTROL" == *"ignoreboth"* ]]
     then
         this_command="${BASH_COMMAND:-}"
         local __bp_ignorespace=
