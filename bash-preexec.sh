@@ -80,7 +80,14 @@ __bp_adjust_histcontrol() {
     if [[ "$histcontrol" == *"ignoreboth"* ]]; then
         histcontrol="ignoredups:${histcontrol//ignoreboth}"
     fi;
-    export HISTCONTROL="$histcontrol"
+	
+	if [[ -z "${__bp_suppress_histcontrol_warning:-}" && "$HISTCONTROL" == *ignore+(dups|space)* ]]
+	then
+		echo "bash-preexec is unable to determine full command line when \$HISTCONTROL contains 'ignorespace' (or 'ignoreboth')." >&2
+		echo "Those options have been removed from \$HISTCONTROL." >&2
+	fi
+	
+    HISTCONTROL="$histcontrol"
 }
 
 # This variable describes whether we are currently in "interactive mode";
