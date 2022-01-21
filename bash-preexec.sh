@@ -75,7 +75,8 @@ __bp_require_not_readonly() {
 # history even if it starts with a space.
 __bp_adjust_histcontrol() {
     local histcontrol
-    histcontrol="${HISTCONTROL//ignorespace}"
+    histcontrol="${HISTCONTROL:-}"
+    histcontrol="${histcontrol//ignorespace}"
     # Replace ignoreboth with ignoredups
     if [[ "$histcontrol" == *"ignoreboth"* ]]; then
         histcontrol="ignoredups:${histcontrol//ignoreboth}"
