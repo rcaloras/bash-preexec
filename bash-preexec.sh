@@ -38,14 +38,14 @@ if [[ -z "${BASH_VERSION:-}" ]]; then
 fi
 
 # Avoid duplicate inclusion
-if [[ "${bp_imported:-}" == "defined" ]]; then
+if [[ -n "${bash_preexec_imported:-}" ]]; then
     return 0
 fi
-bp_imported="defined"
+bash_preexec_imported="defined"
 
-# WARNING: This variable has never been designed as part of the public API. Bash
-# libraries are recommended to use the public version above for detection.
-__bp_imported="${bp_imported}"
+# WARNING: This variable is no longer used and should not be relied upon.
+# Use ${bash_preexec_imported} instead.
+__bp_imported="${bash_preexec_imported}"
 
 # Should be available to each precmd and preexec
 # functions, should they want it. $? and $_ are available as $? and $_, but
