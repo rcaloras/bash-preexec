@@ -157,21 +157,38 @@ __bp_precmd_invoke_cmd() {
         return
     fi
     local __bp_inside_precmd=1
+    __bp_invoke_precmd_functions "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
 
+    __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
+}
+
+# This function invokes every function defined in our function array
+# "precmd_function".  This function receives the arguments $1 and $2 for $? and
+# $_, respectively, which will be set for each precmd function. This function
+# returns the last non-zero exit status of the hook functions. If there is no
+# error, this function returns 0.
+__bp_invoke_precmd_functions() {
+    local lastexit=$1 lastarg=$2
     # Invoke every function defined in our function array.
     local precmd_function
+    local precmd_function_ret_value
+    local precmd_ret_value=0
     for precmd_function in "${precmd_functions[@]}"; do
 
         # Only execute this function if it actually exists.
         # Test existence of functions with: declare -[Ff]
         if type -t "$precmd_function" 1>/dev/null; then
-            __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
+            __bp_set_ret_value "$lastexit" "$lastarg"
             # Quote our function invocation to prevent issues with IFS
             "$precmd_function"
+            precmd_function_ret_value=$?
+            if [[ "$precmd_function_ret_value" != 0 ]]; then
+                precmd_ret_value="$precmd_function_ret_value"
+            fi
         fi
     done
 
-    __bp_set_ret_value "$__bp_last_ret_value"
+    __bp_set_ret_value "$precmd_ret_value"
 }
 
 # Sets a return value in $?. We may want to get access to the $? variable in our
@@ -258,24 +275,8 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
-    # Invoke every function defined in our function array.
-    local preexec_function
-    local preexec_function_ret_value
-    local preexec_ret_value=0
-    for preexec_function in "${preexec_functions[@]:-}"; do
-
-        # Only execute each function if it actually exists.
-        # Test existence of function with: declare -[fF]
-        if type -t "$preexec_function" 1>/dev/null; then
-            __bp_set_ret_value "${__bp_last_ret_value:-}"
-            # Quote our function invocation to prevent issues with IFS
-            "$preexec_function" "$this_command"
-            preexec_function_ret_value="$?"
-            if [[ "$preexec_function_ret_value" != 0 ]]; then
-                preexec_ret_value="$preexec_function_ret_value"
-            fi
-        fi
-    done
+    __bp_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
+    local preexec_ret_value=$?
 
     # Restore the last argument of the last executed command, and set the return
     # value of the DEBUG trap to be the return code of the last preexec function
@@ -284,6 +285,35 @@ __bp_preexec_invoke_exec() {
     # will cause the user's command not to execute.
     # Run `shopt -s extdebug` to enable
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
+}
+
+# This function invokes every function defined in our function array
+# "preexec_function".  This function receives the arguments $1 and $2 for $?
+# and $_, respectively, which will be set for each preexec function.  The third
+# argument $3 specifies the user command that is going to be executed
+# (corresponding to BASH_COMMAND in the DEBUG trap).  This function returns the
+# last non-zero exit status from the preexec functions.  If there is no error,
+# this function returns `0`.
+__bp_invoke_preexec_functions() {
+    local lastexit=$1 lastarg=$2 this_command=$3
+    local preexec_function
+    local preexec_function_ret_value
+    local preexec_ret_value=0
+    for preexec_function in "${preexec_functions[@]:-}"; do
+
+        # Only execute each function if it actually exists.
+        # Test existence of function with: declare -[fF]
+        if type -t "$preexec_function" 1>/dev/null; then
+            __bp_set_ret_value "$lastexit" "$lastarg"
+            # Quote our function invocation to prevent issues with IFS
+            "$preexec_function" "$this_command"
+            preexec_function_ret_value="$?"
+            if [[ "$preexec_function_ret_value" != 0 ]]; then
+                preexec_ret_value="$preexec_function_ret_value"
+            fi
+        fi
+    done
+    __bp_set_ret_value "$preexec_ret_value"
 }
 
 __bp_install() {
