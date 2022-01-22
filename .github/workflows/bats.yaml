@@ -1,7 +1,5 @@
 name: Bats tests
 on: [push, pull_request]
-env:
-  functional_test: 'true'
 
 jobs:
   test:
