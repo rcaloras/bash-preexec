@@ -1,0 +1,17 @@
+name: Bats tests
+on: [push, pull_request]
+env:
+  functional_test: 'true'
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install Bats
+        run: |
+          apt-get update
+          apt-get install --assume-yes bats
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Run tests
+        run: bats test
