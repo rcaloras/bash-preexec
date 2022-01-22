@@ -71,7 +71,11 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
-__bp_install_string=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+bash_preexec_install_string=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+
+# The command string that is registered to the DEBUG trap.
+# shellcheck disable=SC2016
+bash_preexec_trapdebug_string='__bp_preexec_invoke_exec "$_"'
 
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
@@ -157,7 +161,7 @@ __bp_precmd_invoke_cmd() {
         return
     fi
     local __bp_inside_precmd=1
-    __bp_invoke_precmd_functions "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
+    bash_preexec_invoke_precmd_functions "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
 
     __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
 }
@@ -167,7 +171,7 @@ __bp_precmd_invoke_cmd() {
 # $_, respectively, which will be set for each precmd function. This function
 # returns the last non-zero exit status of the hook functions. If there is no
 # error, this function returns 0.
-__bp_invoke_precmd_functions() {
+bash_preexec_invoke_precmd_functions() {
     local lastexit=$1 lastarg=$2
     # Invoke every function defined in our function array.
     local precmd_function
@@ -275,7 +279,7 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
-    __bp_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
+    bash_preexec_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
     local preexec_ret_value=$?
 
     # Restore the last argument of the last executed command, and set the return
@@ -294,7 +298,7 @@ __bp_preexec_invoke_exec() {
 # (corresponding to BASH_COMMAND in the DEBUG trap).  This function returns the
 # last non-zero exit status from the preexec functions.  If there is no error,
 # this function returns `0`.
-__bp_invoke_preexec_functions() {
+bash_preexec_invoke_preexec_functions() {
     local lastexit=$1 lastarg=$2 this_command=$3
     local preexec_function
     local preexec_function_ret_value
@@ -322,7 +326,8 @@ __bp_install() {
         return 1
     fi
 
-    trap '__bp_preexec_invoke_exec "$_"' DEBUG
+    # shellcheck disable=SC2064
+    trap "$bash_preexec_trapdebug_string" DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
     eval "local trap_argv=(${__bp_trap_string:-})"
@@ -353,7 +358,7 @@ __bp_install() {
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
     # Edge case of appending to PROMPT_COMMAND
-    existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
+    existing_prompt_command="${existing_prompt_command//$bash_preexec_install_string/:}" # no-op
     existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
     existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
@@ -372,10 +377,13 @@ __bp_install() {
         PROMPT_COMMAND+=$'\n__bp_interactive_mode'
     fi
 
-    # Add two functions to our arrays for convenience
-    # of definition.
-    precmd_functions+=(precmd)
-    preexec_functions+=(preexec)
+    # Add two functions to our arrays for convenience of definition only when
+    # the functions have not yet added.
+    if [[ ! ${__bp_installed_convenience_functions-} ]]; then
+        __bp_installed_convenience_functions=1
+        precmd_functions+=(precmd)
+        preexec_functions+=(preexec)
+    fi
 
     # Invoke our two functions manually that were added to $PROMPT_COMMAND
     __bp_precmd_invoke_cmd
@@ -397,8 +405,46 @@ __bp_install_after_session_init() {
         PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
     fi
     # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
-    PROMPT_COMMAND+=${__bp_install_string}
+    PROMPT_COMMAND+=${bash_preexec_install_string}
 }
+
+# Remove hooks installed in the DEBUG trap and PROMPT_COMMAND.
+bash_preexec_uninstall() {
+    # Remove __bp_install hook from PROMPT_COMMAND
+    # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
+    if [[ ${PROMPT_COMMAND-} == *"$bash_preexec_install_string"* ]]; then
+        PROMPT_COMMAND="${PROMPT_COMMAND//${bash_preexec_install_string}[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
+        PROMPT_COMMAND="${PROMPT_COMMAND//$bash_preexec_install_string}"
+    fi
+
+    # Remove precmd hook from PROMPT_COMMAND
+    local i prompt_command
+    for i in "${!PROMPT_COMMAND[@]}"; do
+      prompt_command=${PROMPT_COMMAND[i]}
+      case $prompt_command in
+      __bp_precmd_invoke_cmd | __bp_interactive_mode)
+        prompt_command= ;;
+      *)
+        prompt_command=${prompt_command/#$'__bp_precmd_invoke_cmd\n'/$'\n'}
+        prompt_command=${prompt_command%$'\n__bp_interactive_mode'}
+        prompt_command=${prompt_command#$'\n'}
+      esac
+      PROMPT_COMMAND[i]=$prompt_command
+    done
+
+    # Remove preexec hook in the DEBUG trap
+    local q="'" Q="'\''"
+    if [[ $(trap -p DEBUG) == "trap -- '${bash_preexec_trapdebug_string//$q/$Q}' DEBUG" ]]; then
+        if [[ ${__bp_trap_string-} ]]; then
+            eval -- "$__bp_trap_string"
+        else
+            trap - DEBUG
+        fi
+    fi
+}
+# Note: We need to add "trace" attribute to the function so that "trap - DEBUG"
+# inside the function takes an effect.
+declare -ft bash_preexec_uninstall
 
 # Run our install so long as we're not delaying it.
 if [[ -z "${__bp_delay_install:-}" ]]; then
