@@ -7,8 +7,8 @@ jobs:
     steps:
       - name: Install Bats
         run: |
-          apt-get update
-          apt-get install --assume-yes bats
+          sudo apt-get update
+          sudo apt-get install --assume-yes bats
       - name: Check out repository
         uses: actions/checkout@v2
       - name: Run tests
