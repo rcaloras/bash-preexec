@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/rcaloras/bash-preexec.svg?branch=master)](https://travis-ci.org/rcaloras/bash-preexec)
+[![Build Status](https://github.com/rcaloras/bash-preexec/actions/workflows/bats.yaml/badge.svg)](https://github.com/rcaloras/bash-preexec/actions/)
 [![GitHub version](https://badge.fury.io/gh/rcaloras%2Fbash-preexec.svg)](https://badge.fury.io/gh/rcaloras%2Fbash-preexec)
 
 Bash-Preexec 
