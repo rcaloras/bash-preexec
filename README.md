@@ -92,10 +92,10 @@ export __bp_enable_subshells="true"
 This is disabled by default due to buggy situations related to to `functrace` and Bash's `DEBUG trap`. See [Issue #25](https://github.com/rcaloras/bash-preexec/issues/25)
 
 ## Library authors
-If you want to detect bash-preexec in your library (for example, to add hooks to `preexec_functions` when available), use the Bash variable `${bp_imported}`:
+If you want to detect bash-preexec in your library (for example, to add hooks to `preexec_functions` when available), use the Bash variable `bash_preexec_imported`:
 
 ```bash
-if [[ "${bp_imported:-}" == "defined" ]]; then
+if [[ -n "${bash_preexec_imported:-}" ]]; then
     echo "Bash-preexec is loaded."
 fi
 ```
