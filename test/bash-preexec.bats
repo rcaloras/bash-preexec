@@ -21,6 +21,17 @@ test_preexec_echo() {
   printf "%s\n" "$1"
 }
 
+# Helper functions necessary because Bats' run doesn't preserve $?
+return_exit_code() {
+  return $1
+}
+
+set_exit_code_and_run_precmd() {
+  return_exit_code ${1:-0}
+  __bp_precmd_invoke_cmd
+}
+
+
 @test "sourcing bash-preexec should exit with 1 if we're not using bash" {
   unset BASH_VERSION
   run source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
@@ -155,7 +166,7 @@ test_preexec_echo() {
 
 @test "precmd should execute a function once" {
     precmd_functions+=(test_echo)
-    run '__bp_precmd_invoke_cmd'
+    run set_exit_code_and_run_precmd
     [ $status -eq 0 ]
     [ "$output" == "test echo" ]
 }
@@ -164,18 +175,10 @@ test_preexec_echo() {
     echo_exit_code() {
       echo "$?"
     }
-    return_exit_code() {
-      return $1
-    }
-    # Helper function is necessary because Bats' run doesn't preserve $?
-    set_exit_code_and_run_precmd() {
-      return_exit_code 251
-      __bp_precmd_invoke_cmd
-    }
 
     precmd_functions+=(echo_exit_code)
-    run 'set_exit_code_and_run_precmd'
-    [ $status -eq 0 ]
+    run set_exit_code_and_run_precmd 251
+    [ $status -eq 251 ]
     [ "$output" == "251" ]
 }
 
@@ -206,7 +209,7 @@ test_preexec_echo() {
     : "last-arg"
     __bp_preexec_invoke_exec "$_"
     eval "$bats_trap" # Restore trap
-    run '__bp_precmd_invoke_cmd'
+    run set_exit_code_and_run_precmd
     [ $status -eq 0 ]
     [ "$output" == "last-arg" ]
 }
@@ -242,7 +245,7 @@ test_preexec_echo() {
     precmd_functions+=(fun_1)
     precmd_functions+=(fun_2)
 
-    run '__bp_precmd_invoke_cmd'
+    run set_exit_code_and_run_precmd
     [ $status -eq 0 ]
     [ "${#lines[@]}" == '2' ]
     [ "${lines[0]}" == "one" ]

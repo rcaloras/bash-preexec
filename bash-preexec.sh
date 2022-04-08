@@ -156,7 +156,7 @@ __bp_precmd_invoke_cmd() {
             "$precmd_function"
         fi
     done
-    
+
     __bp_set_ret_value "$__bp_last_ret_value"
 }
 
