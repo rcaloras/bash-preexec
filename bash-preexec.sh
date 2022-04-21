@@ -33,7 +33,8 @@
 #  either of these after bash-preexec has been installed it will most likely break.
 
 # Make sure this is bash that's running and return otherwise.
-if [[ -z "${BASH_VERSION:-}" ]]; then
+# Use POSIX syntax for this line:
+if [ -z "${BASH_VERSION-}" ]; then
     return 1;
 fi
 
