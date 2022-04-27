@@ -4,7 +4,7 @@
 Bash-Preexec 
 ============
 
-**preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
+**preexec** and **precmd** hook functions for Bash 3.1+ in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
 
 <a href="https://bashhub.com" target="_blank"><img src="https://bashhub.com/assets/images/bashhub-logo.png" alt="Bashhub Logo" width="200"></a>
 

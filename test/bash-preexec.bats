@@ -39,6 +39,16 @@ set_exit_code_and_run_precmd() {
   [ -z "$output" ]
 }
 
+@test "sourcing bash-preexec should exit with 1 if we're using an older version of bash" {
+  if type -p bash-3.0 &>/dev/null; then
+    run bash-3.0 -c "source \"${BATS_TEST_DIRNAME}/../bash-preexec.sh\""
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
+  else
+    skip
+  fi
+}
+
 @test "__bp_install should exit if it's already installed" {
   bp_install
 
