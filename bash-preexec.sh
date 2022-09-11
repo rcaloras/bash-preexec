@@ -178,7 +178,7 @@ __bp_precmd_invoke_cmd() {
 # precmd functions. This is available for instance in zsh. We can simulate it in bash
 # by setting the value here.
 __bp_set_ret_value() {
-    return "${1:-}"
+    return ${1:+"$1"}
 }
 
 __bp_in_prompt_command() {
