@@ -138,8 +138,8 @@ __bp_interactive_mode() {
 __bp_precmd_invoke_cmd() {
     # Save the returned value from our last command, and from each process in
     # its pipeline. Note: this MUST be the first thing done in this function.
-	# BP_PIPESTATUS may be unused, ignore
-	# shellcheck disable=SC2034
+    # BP_PIPESTATUS may be unused, ignore
+    # shellcheck disable=SC2034
 
     __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
@@ -245,7 +245,7 @@ __bp_preexec_invoke_exec() {
     local this_command
     this_command=$(
         export LC_ALL=C
-		# shellcheck disable=SC1007
+        # shellcheck disable=SC1007
         HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
     )
 
@@ -293,8 +293,8 @@ __bp_install() {
     # Preserve any prior DEBUG trap as a preexec function
     local prior_trap
     # we can't easily do this with variable expansion. Leaving as sed command.
-	# shellcheck disable=SC2001
-	prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
+    # shellcheck disable=SC2001
+    prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
     unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
@@ -320,7 +320,7 @@ __bp_install() {
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
-	# shellcheck disable=SC1087
+    # shellcheck disable=SC1087
     existing_prompt_command="${existing_prompt_command//$__bp_install_string[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
     existing_prompt_command="${existing_prompt_command//$__bp_install_string}"
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
