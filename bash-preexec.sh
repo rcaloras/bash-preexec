@@ -55,6 +55,7 @@ bash_preexec_imported="defined"
 
 # WARNING: This variable is no longer used and should not be relied upon.
 # Use ${bash_preexec_imported} instead.
+# shellcheck disable=SC2034
 __bp_imported="${bash_preexec_imported}"
 
 # Should be available to each precmd and preexec
