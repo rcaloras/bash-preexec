@@ -292,6 +292,8 @@ __bp_install() {
 
     # Preserve any prior DEBUG trap as a preexec function
     local prior_trap
+    # we can't easily do this with variable expansion. Leaving as sed command.
+	# shellcheck disable=SC2001
 	prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
     unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
