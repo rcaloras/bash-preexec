@@ -138,6 +138,9 @@ __bp_interactive_mode() {
 __bp_precmd_invoke_cmd() {
     # Save the returned value from our last command, and from each process in
     # its pipeline. Note: this MUST be the first thing done in this function.
+	# BP_PIPESTATUS may be unused, ignore
+	# shellcheck disable=SC2034
+
     __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
     # Don't invoke precmds if we are inside an execution of an "original
