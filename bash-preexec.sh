@@ -32,6 +32,9 @@
 #  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. If you override
 #  either of these after bash-preexec has been installed it will most likely break.
 
+# Tell shellcheck what kind of file this is.
+# shellcheck shell=bash
+
 # Make sure this is bash that's running and return otherwise.
 # Use POSIX syntax for this line:
 if [ -z "${BASH_VERSION-}" ]; then
@@ -135,6 +138,9 @@ __bp_interactive_mode() {
 __bp_precmd_invoke_cmd() {
     # Save the returned value from our last command, and from each process in
     # its pipeline. Note: this MUST be the first thing done in this function.
+    # BP_PIPESTATUS may be unused, ignore
+    # shellcheck disable=SC2034
+
     __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
     # Don't invoke precmds if we are inside an execution of an "original
@@ -165,7 +171,7 @@ __bp_precmd_invoke_cmd() {
 # precmd functions. This is available for instance in zsh. We can simulate it in bash
 # by setting the value here.
 __bp_set_ret_value() {
-    return ${1:-}
+    return "${1:-}"
 }
 
 __bp_in_prompt_command() {
@@ -239,7 +245,7 @@ __bp_preexec_invoke_exec() {
     local this_command
     this_command=$(
         export LC_ALL=C
-        HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
+        HISTTIMEFORMAT='' builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
     )
 
     # Sanity check to make sure we have something to invoke our function with.
@@ -284,7 +290,10 @@ __bp_install() {
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
-    local prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
+    local prior_trap
+    # we can't easily do this with variable expansion. Leaving as sed command.
+    # shellcheck disable=SC2001
+    prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
     unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
@@ -310,6 +319,7 @@ __bp_install() {
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
+    # shellcheck disable=SC1087
     existing_prompt_command="${existing_prompt_command//$__bp_install_string[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
     existing_prompt_command="${existing_prompt_command//$__bp_install_string}"
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
