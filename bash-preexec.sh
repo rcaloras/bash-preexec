@@ -32,6 +32,9 @@
 #  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. If you override
 #  either of these after bash-preexec has been installed it will most likely break.
 
+# Tell shellcheck what kind of file this is.
+# shellcheck shell=bash
+
 # Make sure this is bash that's running and return otherwise.
 # Use POSIX syntax for this line:
 if [ -z "${BASH_VERSION-}" ]; then
