@@ -41,6 +41,12 @@ if [ -z "${BASH_VERSION-}" ]; then
     return 1;
 fi
 
+# We only support Bash 3.1+.
+# Note: BASH_VERSINFO is first available in Bash-2.0.
+if [[ -z "${BASH_VERSINFO-}" || BASH_VERSINFO[0] -lt 3 || BASH_VERSINFO[0] -eq 3 && BASH_VERSINFO[1] -lt 1 ]]; then
+    return 1
+fi
+
 # Avoid duplicate inclusion
 if [[ -n "${bash_preexec_imported:-}" ]]; then
     return 0
