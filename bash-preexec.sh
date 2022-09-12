@@ -55,6 +55,7 @@ bash_preexec_imported="defined"
 
 # WARNING: This variable is no longer used and should not be relied upon.
 # Use ${bash_preexec_imported} instead.
+# shellcheck disable=SC2034
 __bp_imported="${bash_preexec_imported}"
 
 # Should be available to each precmd and preexec
@@ -177,7 +178,7 @@ __bp_precmd_invoke_cmd() {
 # precmd functions. This is available for instance in zsh. We can simulate it in bash
 # by setting the value here.
 __bp_set_ret_value() {
-    return "${1:-}"
+    return ${1:+"$1"}
 }
 
 __bp_in_prompt_command() {
@@ -268,7 +269,7 @@ __bp_preexec_invoke_exec() {
         # Only execute each function if it actually exists.
         # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
-            __bp_set_ret_value ${__bp_last_ret_value:-}
+            __bp_set_ret_value "${__bp_last_ret_value:-}"
             # Quote our function invocation to prevent issues with IFS
             "$preexec_function" "$this_command"
             preexec_function_ret_value="$?"
@@ -325,8 +326,7 @@ __bp_install() {
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
-    # shellcheck disable=SC1087
-    existing_prompt_command="${existing_prompt_command//$__bp_install_string[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
+    existing_prompt_command="${existing_prompt_command//${__bp_install_string}[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
     existing_prompt_command="${existing_prompt_command//$__bp_install_string}"
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
 
