@@ -277,7 +277,7 @@ set_exit_code_and_run_precmd() {
     IFS=_
     name_with_underscores_2() { parts=(2_2); echo $parts; }
     precmd_functions+=(name_with_underscores_2)
-    run '__bp_precmd_invoke_cmd'
+    run set_exit_code_and_run_precmd
     [ $status -eq 0 ]
     [ "$output" == "2 2" ]
 }
