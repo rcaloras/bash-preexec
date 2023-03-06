@@ -183,8 +183,8 @@ __bp_set_ret_value() {
 
 __bp_in_prompt_command() {
 
-    local prompt_command_array
-    IFS=$'\n;' read -rd '' -a prompt_command_array <<< "${PROMPT_COMMAND:-}"
+    local prompt_command_array IFS=$'\n;'
+    read -rd '' -a prompt_command_array <<< "${PROMPT_COMMAND[*]:-}"
 
     local trimmed_arg
     __bp_trim_whitespace trimmed_arg "${1:-}"
@@ -290,7 +290,7 @@ __bp_preexec_invoke_exec() {
 
 __bp_install() {
     # Exit if we already have this installed.
-    if [[ "${PROMPT_COMMAND:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
+    if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1;
     fi
 
@@ -331,14 +331,20 @@ __bp_install() {
     existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
     existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
+    if [[ "${existing_prompt_command:-:}" == ":" ]]; then
+        existing_prompt_command=
+    fi
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    PROMPT_COMMAND=$'__bp_precmd_invoke_cmd\n'
-    if [[ "${existing_prompt_command:-:}" != ":" ]]; then
-        PROMPT_COMMAND+=${existing_prompt_command}$'\n'
-    fi;
-    PROMPT_COMMAND+='__bp_interactive_mode'
+    PROMPT_COMMAND='__bp_precmd_invoke_cmd'
+    PROMPT_COMMAND+=${existing_prompt_command:+$'\n'$existing_prompt_command}
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        PROMPT_COMMAND+=('__bp_interactive_mode')
+    else
+        # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
+        PROMPT_COMMAND+=$'\n__bp_interactive_mode'
+    fi
 
     # Add two functions to our arrays for convenience
     # of definition.
@@ -361,8 +367,10 @@ __bp_install_after_session_init() {
     local sanitized_prompt_command
     __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"
     if [[ -n "$sanitized_prompt_command" ]]; then
+        # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
         PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
     fi;
+    # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
     PROMPT_COMMAND+=${__bp_install_string}
 }
 
