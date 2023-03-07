@@ -136,6 +136,39 @@ set_exit_code_and_run_precmd() {
 
 }
 
+@test "__bp_sanitize_string should remove no-op colons" {
+    __bp_sanitize_string output ':'
+    [ "$output" == "" ]
+
+    __bp_sanitize_string output $':\n:'
+    [ "$output" == "" ]
+
+    __bp_sanitize_string output $':\n:;echo USER1'
+    [ "$output" == "echo USER1" ]
+
+    __bp_sanitize_string output $'echo USER2\n:\necho USER3'
+    expected_result=$'echo USER2\necho USER3'
+    [ "$output" == "$expected_result" ]
+
+    __bp_sanitize_string output $'echo USER4;:;echo USER5'
+    expected_result=$'echo USER4\necho USER5'
+    [ "$output" == "$expected_result" ]
+
+    __bp_sanitize_string output $'echo USER6;:\necho USER7'
+    expected_result=$'echo USER6\necho USER7'
+    [ "$output" == "$expected_result" ]
+
+    __bp_sanitize_string output $':\n: ; echo USER8'
+    [ "$output" == "echo USER8" ]
+
+    __bp_sanitize_string output $':\n:  ;  echo USER9'
+    [ "$output" == "echo USER9" ]
+
+    __bp_sanitize_string output $'echo USER10 ; :\n: ; echo USER11'
+    expected_result=$'echo USER10 \n echo USER11'
+    [ "$output" == "$expected_result" ]
+}
+
 @test "Appending to PROMPT_COMMAND should work after bp_install" {
     bp_install
 

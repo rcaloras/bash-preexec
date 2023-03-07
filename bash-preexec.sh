@@ -121,15 +121,46 @@ __bp_trim_whitespace() {
 
 
 # Trims whitespace and removes any leading or trailing semicolons from $2 and
-# writes the resulting string to the variable name passed as $1. Used for
-# manipulating substrings in PROMPT_COMMAND
+# writes the resulting string to the variable name passed as $1. This also
+# removes the no-op colons, which are converted from the hooks to remove. Used
+# for manipulating substrings in PROMPT_COMMAND
 __bp_sanitize_string() {
-    local var=${1:?} text=${2:-} sanitized
-    __bp_trim_whitespace sanitized "$text"
+    local var=${1:?} sanitized=${2:-}
+
+    local unset_extglob=
+    if ! shopt -q extglob; then
+        unset_extglob=yes
+        shopt -s extglob
+    fi
+
+    # We specify newline character through the variable `nl' because $'\n'
+    # inside "${var//...}" is treated literally as "\$'\\n'" when `extquote' is
+    # unset (shopt -u extquote). (Note: Bash 5.2's extquote seems to be buggy.)
+    local tmp sp=$' \t' nl=$'\n'
+    while
+        # Quoting parameter expansions $nl in PAT of ${var//PAT/REP} is
+        # required by shellcheck.  On the other hand, we should not quote the
+        # parameter expansions $nl in REP because the quotes will remain in the
+        # replaced result with `shopt -s compat42'.
+        tmp="${sanitized//[";$nl"]*(["$sp"]):*(["$sp"])[";$nl"]/$nl}"
+        [[ "$tmp" != "$sanitized" ]]
+    do
+        sanitized="$tmp"
+    done
+    sanitized="${sanitized#:*(["$sp"])[";$nl"]}"
+    sanitized="${sanitized%[";$nl"]*(["$sp"]):}"
+    __bp_trim_whitespace sanitized "$sanitized"
     sanitized=${sanitized%;}
     sanitized=${sanitized#;}
     __bp_trim_whitespace sanitized "$sanitized"
+    if [[ "$sanitized" == ":" ]]; then
+        sanitized=
+    fi
     printf -v "$var" '%s' "$sanitized"
+
+    if [[ -n "$unset_extglob" ]]; then
+        shopt -u extglob
+    fi
 }
 
 # This function is installed as part of the PROMPT_COMMAND;
@@ -319,20 +350,12 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi
 
-    # We specify newline character through the variable `nl' because $'\n'
-    # inside "${var//...}" is treated literally as "\$'\\n'" when `extquote' is
-    # unset (shopt -u extquote). (Note: Bash 5.2's extquote seems to be buggy.)
-    local existing_prompt_command nl=$'\n'
+    local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
     # Edge case of appending to PROMPT_COMMAND
     existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
-    existing_prompt_command="${existing_prompt_command//$nl:$nl/$nl}" # remove known-token only
-    existing_prompt_command="${existing_prompt_command//$nl:;/$nl}" # remove known-token only
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
-    if [[ "${existing_prompt_command:-:}" == ":" ]]; then
-        existing_prompt_command=
-    fi
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
