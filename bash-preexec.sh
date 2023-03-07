@@ -319,13 +319,16 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi
 
-    local existing_prompt_command
+    # We specify newline character through the variable `nl' because $'\n'
+    # inside "${var//...}" is treated literally as "\$'\\n'" when `extquote' is
+    # unset (shopt -u extquote). (Note: Bash 5.2's extquote seems to be buggy.)
+    local existing_prompt_command nl=$'\n'
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
     # Edge case of appending to PROMPT_COMMAND
     existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
-    existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
-    existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
+    existing_prompt_command="${existing_prompt_command//$nl:$nl/$nl}" # remove known-token only
+    existing_prompt_command="${existing_prompt_command//$nl:;/$nl}" # remove known-token only
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
     if [[ "${existing_prompt_command:-:}" == ":" ]]; then
         existing_prompt_command=
