@@ -163,6 +163,39 @@ __bp_sanitize_string() {
     fi
 }
 
+
+# Bash >= 5.1 supports the array version of PROMPT_COMMAND.
+__bp_use_array_prompt_command() {
+    (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) ))
+}
+
+
+# Remove $1 and sanitize each elements of PROMPT_COMMAND. We want to keep
+# PROMPT_COMMAND scalar in bash < 5.1 because some configuration tests the
+# support for the array PROMPT_COMMAND by checking the array attribute of
+# PROMPT_COMMAND.
+__bp_remove_command_from_prompt_command() {
+    local removed_command="${1-}"
+    if __bp_use_array_prompt_command; then
+        local i sanitized_prompt_command
+        for i in "${!PROMPT_COMMAND[@]}"; do
+            sanitized_prompt_command="${PROMPT_COMMAND[i]:-}"
+            sanitized_prompt_command="${sanitized_prompt_command//"$removed_command"/:}"
+            __bp_sanitize_string sanitized_prompt_command "$sanitized_prompt_command"
+            if [[ -n "$sanitized_prompt_command" ]]; then
+                PROMPT_COMMAND[i]="$sanitized_prompt_command"
+            else
+                unset -v 'PROMPT_COMMAND[i]'
+            fi
+        done
+    else
+        local sanitized_prompt_command="${PROMPT_COMMAND:-}"
+        sanitized_prompt_command="${sanitized_prompt_command//"$removed_command"/:}" # no-op
+        __bp_sanitize_string PROMPT_COMMAND "$sanitized_prompt_command"
+    fi
+}
+
+
 # This function is installed as part of the PROMPT_COMMAND;
 # It sets a variable to indicate that the prompt was just displayed,
 # to allow the DEBUG trap to know that the next command is likely interactive.
@@ -187,6 +220,11 @@ __bp_precmd_invoke_cmd() {
     if (( __bp_inside_precmd > 0 )); then
         return
     fi
+
+    # Check and adjust PROMPT_COMMAND to make sure that PROMPT_COMMAND has the
+    # form "__bp_precmd_invoke_cmd; ...; __bp_interactive_mode"
+    __bp_install_prompt_command
+
     local __bp_inside_precmd=1
 
     # Invoke every function defined in our function array.
@@ -350,23 +388,10 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi
 
-    local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
-    existing_prompt_command="${PROMPT_COMMAND:-}"
-    # Edge case of appending to PROMPT_COMMAND
-    existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
-    __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
+    __bp_remove_command_from_prompt_command "$__bp_install_string"
 
-    # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
-    # actually entered something.
-    PROMPT_COMMAND='__bp_precmd_invoke_cmd'
-    PROMPT_COMMAND+=${existing_prompt_command:+$'\n'$existing_prompt_command}
-    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
-        PROMPT_COMMAND+=('__bp_interactive_mode')
-    else
-        # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
-        PROMPT_COMMAND+=$'\n__bp_interactive_mode'
-    fi
+    __bp_install_prompt_command
 
     # Add two functions to our arrays for convenience
     # of definition.
@@ -377,6 +402,38 @@ __bp_install() {
     __bp_precmd_invoke_cmd
     __bp_interactive_mode
 }
+
+
+# Encloses PROMPT_COMMAND hooks within __bp_precmd_invoke_cmd and
+# __bp_interactive_mode.
+__bp_install_prompt_command() {
+    local prompt_command="${PROMPT_COMMAND:-}"
+    if __bp_use_array_prompt_command; then
+        local IFS=$'\n'
+        prompt_command="${PROMPT_COMMAND[*]:-}"
+        IFS=$' \t\n'
+    fi
+
+    # Exit if we already have a properly set-up hooks in PROMPT_COMMAND
+    if [[ "$prompt_command" == __bp_precmd_invoke_cmd$'\n'*$'\n'__bp_interactive_mode ]]; then
+        return 0
+    fi
+
+    __bp_remove_command_from_prompt_command __bp_precmd_invoke_cmd
+    __bp_remove_command_from_prompt_command __bp_interactive_mode
+
+    # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
+    # actually entered something.
+    # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
+    PROMPT_COMMAND='__bp_precmd_invoke_cmd'${PROMPT_COMMAND:+$'\n'$PROMPT_COMMAND}
+    if __bp_use_array_prompt_command; then
+        PROMPT_COMMAND+=('__bp_interactive_mode')
+    else
+        # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
+        PROMPT_COMMAND+=$'\n__bp_interactive_mode'
+    fi
+}
+
 
 # Sets an installation string as part of our PROMPT_COMMAND to install
 # after our session has started. This allows bash-preexec to be included
