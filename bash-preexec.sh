@@ -326,14 +326,16 @@ __bp_install() {
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
     existing_prompt_command="${PROMPT_COMMAND:-}"
-    existing_prompt_command="${existing_prompt_command//${__bp_install_string}[;$'\n']}" # Edge case of appending to PROMPT_COMMAND
-    existing_prompt_command="${existing_prompt_command//$__bp_install_string}"
+    # Edge case of appending to PROMPT_COMMAND
+    existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
+    existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
+    existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
     PROMPT_COMMAND=$'__bp_precmd_invoke_cmd\n'
-    if [[ -n "$existing_prompt_command" ]]; then
+    if [[ "${existing_prompt_command:-:}" != ":" ]]; then
         PROMPT_COMMAND+=${existing_prompt_command}$'\n'
     fi;
     PROMPT_COMMAND+='__bp_interactive_mode'
