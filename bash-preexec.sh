@@ -200,6 +200,14 @@ __bp_remove_command_from_prompt_command() {
 # It sets a variable to indicate that the prompt was just displayed,
 # to allow the DEBUG trap to know that the next command is likely interactive.
 __bp_interactive_mode() {
+    if [[ "${1-}" != "force" && ! "${BATS_VERSION-}" ]] && (( ${#FUNCNAME[*]} > 1 )); then
+        # When this function is not called from the top level, the current
+        # function call is probably performed via PROMPT_COMMAND saved by
+        # another framework (e.g., starship). In this case, we do not want to
+        # turn on the "interactive mode" here.
+        return 0
+    fi
+
     __bp_preexec_interactive_mode="on"
 }
 
@@ -223,7 +231,15 @@ __bp_precmd_invoke_cmd() {
 
     # Check and adjust PROMPT_COMMAND to make sure that PROMPT_COMMAND has the
     # form "__bp_precmd_invoke_cmd; ...; __bp_interactive_mode"
-    __bp_install_prompt_command
+    if ! __bp_install_prompt_command && [[ ! "${BATS_VERSION-}" ]] && (( ${#FUNCNAME[*]} > 1 )); then
+        # When PROMPT_COMMAND is already properly set up but this function is
+        # not called from the top level, the current function call is probably
+        # performed via PROMPT_COMMAND saved by another framework (e.g.,
+        # starship). In this case, we do not need to invoke precmd because it
+        # is supposed to be already processed by the top-level
+        # __bp_precmd_invoke_cmd.
+        return 0
+    fi
 
     local __bp_inside_precmd=1
 
@@ -391,7 +407,7 @@ __bp_install() {
     # Remove setting our trap install string and sanitize the existing prompt command string
     __bp_remove_command_from_prompt_command "$__bp_install_string"
 
-    __bp_install_prompt_command
+    __bp_install_prompt_command || true
 
     # Add two functions to our arrays for convenience
     # of definition.
@@ -400,12 +416,14 @@ __bp_install() {
 
     # Invoke our two functions manually that were added to $PROMPT_COMMAND
     __bp_precmd_invoke_cmd
-    __bp_interactive_mode
+    __bp_interactive_mode force
 }
 
 
 # Encloses PROMPT_COMMAND hooks within __bp_precmd_invoke_cmd and
-# __bp_interactive_mode.
+# __bp_interactive_mode. If all the PROMPT_COMMAND hooks are already surrounded
+# by __bp_precmd_invoke_cmd and __bp_interactive_mode, the function exits with
+# status 1.
 __bp_install_prompt_command() {
     local prompt_command="${PROMPT_COMMAND:-}"
     if __bp_use_array_prompt_command; then
@@ -416,7 +434,7 @@ __bp_install_prompt_command() {
 
     # Exit if we already have a properly set-up hooks in PROMPT_COMMAND
     if [[ "$prompt_command" == __bp_precmd_invoke_cmd$'\n'*$'\n'__bp_interactive_mode ]]; then
-        return 0
+        return 1
     fi
 
     __bp_remove_command_from_prompt_command __bp_precmd_invoke_cmd
@@ -432,6 +450,7 @@ __bp_install_prompt_command() {
         # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
         PROMPT_COMMAND+=$'\n__bp_interactive_mode'
     fi
+    return 0
 }
 
 
