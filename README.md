@@ -4,7 +4,7 @@
 Bash-Preexec 
 ============
 
-**preexec** and **precmd** hook functions for Bash in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
+**preexec** and **precmd** hook functions for Bash 3.1+ in the style of Zsh. They aim to emulate the behavior [as described for Zsh](http://zsh.sourceforge.net/Doc/Release/Functions.html#Hook-Functions).
 
 <a href="https://bashhub.com" target="_blank"><img src="https://bashhub.com/assets/images/bashhub-logo.png" alt="Bashhub Logo" width="200"></a>
 
@@ -12,7 +12,7 @@ This project is currently being used in production by [Bashhub](https://github.c
 
 ## Quick Start
 ```bash
-# Pull down our file from GitHub and write it to our home directory as a hidden file.
+# Pull down our file from GitHub and write it to your home directory as a hidden file.
 curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh -o ~/.bash-preexec.sh
 # Source our file to bring it into our environment
 source ~/.bash-preexec.sh
@@ -24,7 +24,7 @@ precmd() { echo "printing the prompt"; }
 ## Install
 You'll want to pull down the file and add it to your bash profile/configuration (i.e ~/.bashrc, ~/.profile, ~/.bash_profile, etc). **It must be the last thing imported in your bash profile.**
 ```bash
-# Pull down our file from GitHub and write it to our home directory as a hidden file.
+# Pull down our file from GitHub and write it to your home directory as a hidden file.
 curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec.sh -o ~/.bash-preexec.sh
 # Source our file at the end of our bash profile (e.g. ~/.bashrc, ~/.profile, or ~/.bash_profile)
 echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh' >> ~/.bashrc

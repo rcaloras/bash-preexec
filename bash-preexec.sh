@@ -9,7 +9,7 @@
 # Author: Ryan Caloras (ryan@bashhub.com)
 # Forked from Original Author: Glyph Lefkowitz
 #
-# V0.4.1
+# V0.5.0
 #
 
 # General Usage:
@@ -32,9 +32,19 @@
 #  using: the "DEBUG" trap, and the "PROMPT_COMMAND" variable. If you override
 #  either of these after bash-preexec has been installed it will most likely break.
 
+# Tell shellcheck what kind of file this is.
+# shellcheck shell=bash
+
 # Make sure this is bash that's running and return otherwise.
-if [[ -z "${BASH_VERSION:-}" ]]; then
+# Use POSIX syntax for this line:
+if [ -z "${BASH_VERSION-}" ]; then
     return 1;
+fi
+
+# We only support Bash 3.1+.
+# Note: BASH_VERSINFO is first available in Bash-2.0.
+if [[ -z "${BASH_VERSINFO-}" || BASH_VERSINFO[0] -lt 3 || BASH_VERSINFO[0] -eq 3 && BASH_VERSINFO[1] -lt 1 ]]; then
+    return 1
 fi
 
 # Avoid duplicate inclusion
@@ -45,6 +55,7 @@ bash_preexec_imported="defined"
 
 # WARNING: This variable is no longer used and should not be relied upon.
 # Use ${bash_preexec_imported} instead.
+# shellcheck disable=SC2034
 __bp_imported="${bash_preexec_imported}"
 
 # Should be available to each precmd and preexec
@@ -134,6 +145,9 @@ __bp_interactive_mode() {
 __bp_precmd_invoke_cmd() {
     # Save the returned value from our last command, and from each process in
     # its pipeline. Note: this MUST be the first thing done in this function.
+    # BP_PIPESTATUS may be unused, ignore
+    # shellcheck disable=SC2034
+
     __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
     # Don't invoke precmds if we are inside an execution of an "original
@@ -156,13 +170,15 @@ __bp_precmd_invoke_cmd() {
             "$precmd_function"
         fi
     done
+
+    __bp_set_ret_value "$__bp_last_ret_value"
 }
 
 # Sets a return value in $?. We may want to get access to the $? variable in our
 # precmd functions. This is available for instance in zsh. We can simulate it in bash
 # by setting the value here.
 __bp_set_ret_value() {
-    return ${1:-}
+    return ${1:+"$1"}
 }
 
 __bp_in_prompt_command() {
@@ -236,7 +252,7 @@ __bp_preexec_invoke_exec() {
     local this_command
     this_command=$(
         export LC_ALL=C
-        HISTTIMEFORMAT= builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
+        HISTTIMEFORMAT='' builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
     )
 
     # Sanity check to make sure we have something to invoke our function with.
@@ -253,7 +269,7 @@ __bp_preexec_invoke_exec() {
         # Only execute each function if it actually exists.
         # Test existence of function with: declare -[fF]
         if type -t "$preexec_function" 1>/dev/null; then
-            __bp_set_ret_value ${__bp_last_ret_value:-}
+            __bp_set_ret_value "${__bp_last_ret_value:-}"
             # Quote our function invocation to prevent issues with IFS
             "$preexec_function" "$this_command"
             preexec_function_ret_value="$?"
@@ -281,7 +297,10 @@ __bp_install() {
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
-    local prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
+    local prior_trap
+    # we can't easily do this with variable expansion. Leaving as sed command.
+    # shellcheck disable=SC2001
+    prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
     unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
