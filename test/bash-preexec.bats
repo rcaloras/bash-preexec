@@ -159,6 +159,30 @@ set_exit_code_and_run_precmd() {
   fi
 }
 
+@test "__bp_install_prompt_command should adjust modified PROMPT_COMMAND" {
+    unset -v PROMPT_COMMAND
+    PROMPT_COMMAND="echo PREHOOK"
+
+    # First install
+    __bp_install_prompt_command
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho PREHOOK\n__bp_interactive_mode'
+    [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
+
+    # User modification
+    if __bp_use_array_prompt_command; then
+        PROMPT_COMMAND+=('echo POSTHOOK')
+    else
+        PROMPT_COMMAND+=$'\necho POSTHOOK'
+    fi
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho PREHOOK\n__bp_interactive_mode\necho POSTHOOK'
+    [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
+
+    # Re-adjust
+    __bp_install_prompt_command
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho PREHOOK\necho POSTHOOK\n__bp_interactive_mode'
+    [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
+}
+
 @test "__bp_sanitize_string should remove semicolons and trim space" {
 
     __bp_sanitize_string output "   true1;  "$'\n'
