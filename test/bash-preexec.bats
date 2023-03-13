@@ -8,9 +8,23 @@ setup() {
   source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
 }
 
+# Evaluates all the elements of PROMPT_COMMAND
+eval_PROMPT_COMMAND() {
+  local prompt_command
+  for prompt_command in "${PROMPT_COMMAND[@]}"; do
+    eval "$prompt_command"
+  done
+}
+
+# Joins the elements of PROMPT_COMMAND with $'\n'
+join_PROMPT_COMMAND() {
+  local IFS=$'\n'
+  echo "${PROMPT_COMMAND[*]}"
+}
+
 bp_install() {
   __bp_install_after_session_init
-  eval "$PROMPT_COMMAND"
+  eval_PROMPT_COMMAND
 }
 
 test_echo() {
@@ -63,7 +77,7 @@ set_exit_code_and_run_precmd() {
   [[ "$PROMPT_COMMAND" == *"trap - DEBUG"* ]] || return 1
   [[ "$PROMPT_COMMAND" == *"__bp_install"* ]] || return 1
 
-  eval "$PROMPT_COMMAND"
+  eval_PROMPT_COMMAND
 
   [[ "$PROMPT_COMMAND" != *"trap DEBUG"* ]] || return 1
   [[ "$PROMPT_COMMAND" != *"__bp_install"* ]] || return 1
@@ -106,7 +120,7 @@ set_exit_code_and_run_precmd() {
     bp_install
 
     PROMPT_COMMAND="$PROMPT_COMMAND; true"
-    eval "$PROMPT_COMMAND"
+    eval_PROMPT_COMMAND
 }
 
 @test "Appending or prepending to PROMPT_COMMAND should work after bp_install_after_session_init" {
@@ -119,7 +133,7 @@ set_exit_code_and_run_precmd() {
     PROMPT_COMMAND="true; $PROMPT_COMMAND"
     PROMPT_COMMAND="true; $PROMPT_COMMAND"
     PROMPT_COMMAND="true $nl $PROMPT_COMMAND"
-    eval "$PROMPT_COMMAND"
+    eval_PROMPT_COMMAND
 }
 
 # Case where a user is appending or prepending to PROMPT_COMMAND.
@@ -132,10 +146,10 @@ set_exit_code_and_run_precmd() {
     PROMPT_COMMAND="$PROMPT_COMMAND"$'\n echo after'
     PROMPT_COMMAND="echo after2; $PROMPT_COMMAND;"
 
-    eval "$PROMPT_COMMAND"
+    eval_PROMPT_COMMAND
 
     expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
-    [ "$PROMPT_COMMAND" == "$expected_result" ]
+    [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
 @test "Adding to PROMPT_COMMAND after with semicolon" {
@@ -143,10 +157,10 @@ set_exit_code_and_run_precmd() {
     __bp_install_after_session_init
     PROMPT_COMMAND="$PROMPT_COMMAND; echo after"
 
-    eval "$PROMPT_COMMAND"
+    eval_PROMPT_COMMAND
 
     expected_result=$'__bp_precmd_invoke_cmd\necho before\n echo after\n__bp_interactive_mode'
-    [ "$PROMPT_COMMAND" == "$expected_result" ]
+    [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
 @test "during install PROMPT_COMMAND and precmd functions should be executed each once" {
@@ -157,7 +171,7 @@ set_exit_code_and_run_precmd() {
     PROMPT_COMMAND="echo after2; $PROMPT_COMMAND;"
 
     precmd() { echo "inside precmd"; }
-    run eval "$PROMPT_COMMAND"
+    run eval_PROMPT_COMMAND
     [ "${lines[0]}" == "after2" ]
     [ "${lines[1]}" == "before" ]
     [ "${lines[2]}" == "before2" ]
