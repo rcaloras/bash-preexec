@@ -6,6 +6,12 @@
   [ -z $(type -t __bp_install) ]
 }
 
+@test "should not import if it's already defined (old guard, don't use elsewhere!)" {
+  __bp_imported="defined"
+  source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"
+  [ -z $(type -t __bp_install) ]
+}
+
 @test "should import if not defined" {
   unset bash_preexec_imported
   source "${BATS_TEST_DIRNAME}/../bash-preexec.sh"

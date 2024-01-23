@@ -48,7 +48,7 @@ if [[ -z "${BASH_VERSINFO-}" ]] || (( BASH_VERSINFO[0] < 3 || (BASH_VERSINFO[0] 
 fi
 
 # Avoid duplicate inclusion
-if [[ -n "${bash_preexec_imported:-}" ]]; then
+if [[ -n "${bash_preexec_imported:-}" || -n "${__bp_imported:-}" ]]; then
     return 0
 fi
 bash_preexec_imported="defined"
