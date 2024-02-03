@@ -71,6 +71,7 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
+# shellcheck disable=SC2016
 __bp_install_string='__bp_install "$_"'
 
 # Fails if any of the given variables are readonly
@@ -378,6 +379,7 @@ fi
 __bp_install() {
     local lastexit=$? lastarg=$_
     # Exit if we already have this installed.
+    # shellcheck disable=SC2016
     if [[ "${PROMPT_COMMAND[*]:-}" == *'__bp_precmd_invoke_cmd "$_"'* ]]; then
         return 1
     fi
