@@ -442,7 +442,7 @@ __bp_install_prompt_command() {
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
+    # shellcheck disable=SC2178,SC2128 # PROMPT_COMMAND is not an array in bash <= 5.0
     PROMPT_COMMAND='__bp_precmd_invoke_cmd'${PROMPT_COMMAND:+$'\n'$PROMPT_COMMAND}
     if __bp_use_array_prompt_command; then
         PROMPT_COMMAND+=('__bp_interactive_mode')
