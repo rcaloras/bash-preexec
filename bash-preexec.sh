@@ -71,6 +71,7 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
+# shellcheck disable=SC2016
 __bp_install_string='__bp_install "$_"'
 
 # Fails if any of the given variables are readonly
@@ -463,6 +464,7 @@ fi
 __bp_install() {
     local lastexit=$? lastarg=$_
     # Exit if we already have this installed.
+    # shellcheck disable=SC2016
     if [[ "${PROMPT_COMMAND[*]:-}" == *'__bp_precmd_invoke_cmd "$_"'* ]]; then
         return 1
     fi
@@ -503,6 +505,7 @@ __bp_install_prompt_command() {
     fi
 
     # Exit if we already have a properly set-up hooks in PROMPT_COMMAND
+    # shellcheck disable=SC2016
     local prologue='__bp_precmd_invoke_cmd "$_"'
     local epilogue='__bp_interactive_mode'
     if [[ "$prompt_command" == "$prologue"$'\n'*$'\n'"$epilogue" ]]; then
@@ -514,7 +517,7 @@ __bp_install_prompt_command() {
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
+    # shellcheck disable=SC2178,SC2128 # PROMPT_COMMAND is not an array in bash <= 5.0
     PROMPT_COMMAND=$prologue${PROMPT_COMMAND:+$'\n'$PROMPT_COMMAND}
     if __bp_use_array_prompt_command; then
         PROMPT_COMMAND+=("$epilogue")
