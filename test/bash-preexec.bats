@@ -79,7 +79,7 @@ set_exit_code_and_run_precmd() {
 
   eval_PROMPT_COMMAND
 
-  [[ "$PROMPT_COMMAND" != *"trap DEBUG"* ]] || return 1
+  [[ "$PROMPT_COMMAND" != *"trap - DEBUG"* ]] || return 1
   [[ "$PROMPT_COMMAND" != *"__bp_install"* ]] || return 1
 }
 
