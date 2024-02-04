@@ -74,13 +74,11 @@ set_exit_code_and_run_precmd() {
 @test "__bp_install should remove trap logic and itself from PROMPT_COMMAND" {
   __bp_install_after_session_init
 
-  [[ "$PROMPT_COMMAND" == *"trap - DEBUG"* ]] || return 1
-  [[ "$PROMPT_COMMAND" == *"__bp_install"* ]] || return 1
+  [[ "$PROMPT_COMMAND" == *"$__bp_install_string"* ]] || return 1
 
   eval_PROMPT_COMMAND
 
-  [[ "$PROMPT_COMMAND" != *"trap - DEBUG"* ]] || return 1
-  [[ "$PROMPT_COMMAND" != *"__bp_install"* ]] || return 1
+  [[ "$PROMPT_COMMAND" != *"$__bp_install_string"* ]] || return 1
 }
 
 @test "__bp_install should preserve an existing DEBUG trap" {
