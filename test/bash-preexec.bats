@@ -74,6 +74,8 @@ set_exit_code_and_run_precmd() {
 @test "__bp_install should remove trap logic and itself from PROMPT_COMMAND" {
   __bp_install_after_session_init
 
+  # Assert that before running, the command contains the install string, and
+  # afterwards it does not
   [[ "$PROMPT_COMMAND" == *"$__bp_install_string"* ]] || return 1
 
   eval_PROMPT_COMMAND
