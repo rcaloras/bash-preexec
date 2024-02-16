@@ -222,7 +222,7 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
-    if [[ -n "${COMP_LINE:-}" || -n "${READLINE_POINT:-}" ]]; then
+    if [[ -n "${COMP_POINT:-}" || -n "${READLINE_POINT:-}" ]]; then
         # We're in the middle of a completer or a keybinding set up by "bind
         # -x".  This obviously can't be an interactively issued command.
         return
