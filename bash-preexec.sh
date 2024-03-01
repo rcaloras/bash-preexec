@@ -165,7 +165,7 @@ __bp_precmd_invoke_cmd() {
         # Only execute this function if it actually exists.
         # Test existence of functions with: declare -[Ff]
         if type -t "$precmd_function" 1>/dev/null; then
-            __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
+            __bp_set_ret_value "$__bp_last_ret_value"
             # Quote our function invocation to prevent issues with IFS
             "$precmd_function"
         fi
@@ -285,7 +285,7 @@ __bp_preexec_invoke_exec() {
     # If `extdebug` is enabled a non-zero return value from any preexec function
     # will cause the user's command not to execute.
     # Run `shopt -s extdebug` to enable
-    __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
+    __bp_set_ret_value "$preexec_ret_value"
 }
 
 __bp_install() {
