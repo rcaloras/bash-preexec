@@ -163,8 +163,7 @@ __bp_precmd_invoke_cmd() {
     for precmd_function in "${precmd_functions[@]}"; do
 
         # Only execute this function if it actually exists.
-        # Test existence of functions with: declare -[Ff]
-        if type -t "$precmd_function" 1>/dev/null; then
+        if __bp_func_exists "$precmd_function"; then
             __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
             # Quote our function invocation to prevent issues with IFS
             "$precmd_function"
@@ -172,6 +171,12 @@ __bp_precmd_invoke_cmd() {
     done
 
     __bp_set_ret_value "$__bp_last_ret_value"
+}
+
+# Check if a shell function exists. This overrides PATH to avoid a potentially
+# slow search of bin dirs.
+__bp_func_exists() {
+    [[ $(PATH= type -t "$1") == function ]]
 }
 
 # Sets a return value in $?. We may want to get access to the $? variable in our
@@ -267,8 +272,7 @@ __bp_preexec_invoke_exec() {
     for preexec_function in "${preexec_functions[@]:-}"; do
 
         # Only execute each function if it actually exists.
-        # Test existence of function with: declare -[fF]
-        if type -t "$preexec_function" 1>/dev/null; then
+        if __bp_func_exists "$preexec_function"; then
             __bp_set_ret_value "${__bp_last_ret_value:-}"
             # Quote our function invocation to prevent issues with IFS
             "$preexec_function" "$this_command"
