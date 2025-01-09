@@ -289,6 +289,15 @@ __bp_preexec_invoke_exec() {
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
 
+__bp_invoke_preexec_from_ps0() {
+    __bp_last_argument_prev_command="${1:-}"
+
+    local this_command
+    __bp_load_this_command_from_history || return
+
+    __bp_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
+}
+
 # This function invokes every function defined in our function array
 # "preexec_function".  This function receives the arguments $1 and $2 for $?
 # and $_, respectively, which will be set for each preexec function.  The third
@@ -318,12 +327,7 @@ __bp_invoke_preexec_functions() {
     __bp_set_ret_value "$preexec_ret_value"
 }
 
-__bp_install() {
-    # Exit if we already have this installed.
-    if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
-        return 1
-    fi
-
+__bp_hook_preexec_into_debug() {
     local trap_string
     trap_string=$(trap -p DEBUG)
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
@@ -350,6 +354,27 @@ __bp_install() {
         # Set so debug trap will work be invoked in subshells.
         set -o functrace > /dev/null 2>&1
         shopt -s extdebug > /dev/null 2>&1
+    fi
+}
+
+__bp_hook_preexec_into_ps0() {
+    # shellcheck disable=SC2016
+    PS0=${PS0-}'${ __bp_invoke_preexec_from_ps0 "$_"; }'
+
+    # Adjust our HISTCONTROL Variable if needed.
+    __bp_adjust_histcontrol
+}
+
+__bp_install() {
+    # Exit if we already have this installed.
+    if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
+        return 1
+    fi
+
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+        __bp_hook_preexec_into_ps0
+    else
+        __bp_hook_preexec_into_debug
     fi
 
     local existing_prompt_command
@@ -388,7 +413,7 @@ __bp_install() {
 # Note: We need to add "trace" attribute to the function so that "trap
 # ... DEBUG" inside "__bp_install" takes an effect even when there was an
 # existing DEBUG trap.
-declare -ft __bp_install
+declare -ft __bp_install __bp_hook_preexec_into_debug
 
 # Sets an installation string as part of our PROMPT_COMMAND to install
 # after our session has started. This allows bash-preexec to be included
