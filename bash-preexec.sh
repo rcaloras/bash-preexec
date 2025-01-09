@@ -217,6 +217,14 @@ __bp_in_prompt_command() {
     return 1
 }
 
+__bp_load_this_command_from_history() {
+    this_command=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
+    this_command="${this_command#*[[:digit:]][* ] }"
+
+    # Sanity check to make sure we have something to invoke our function with.
+    [[ -n "$this_command" ]]
+}
+
 # This function is installed as the DEBUG trap.  It is invoked before each
 # interactive prompt display.  Its purpose is to inspect the current
 # environment to attempt to detect if the current command is being invoked
@@ -267,13 +275,7 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    this_command=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
-    this_command="${this_command#*[[:digit:]][* ] }"
-
-    # Sanity check to make sure we have something to invoke our function with.
-    if [[ -z "$this_command" ]]; then
-        return
-    fi
+    __bp_load_this_command_from_history || return
 
     __bp_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
     local preexec_ret_value=$?
