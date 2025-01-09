@@ -71,7 +71,7 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
-__bp_install_string=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+__bp_install_string='__bp_install'
 
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
@@ -324,12 +324,13 @@ __bp_install() {
         return 1
     fi
 
+    local trap_string
+    trap_string=$(trap -p DEBUG)
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
-    eval "local trap_argv=(${__bp_trap_string:-})"
+    eval "local trap_argv=(${trap_string:-})"
     local prior_trap=${trap_argv[2]:-}
-    unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
             '"$prior_trap"'
@@ -383,6 +384,11 @@ __bp_install() {
     __bp_precmd_invoke_cmd
     __bp_interactive_mode
 }
+
+# Note: We need to add "trace" attribute to the function so that "trap
+# ... DEBUG" inside "__bp_install" takes an effect even when there was an
+# existing DEBUG trap.
+declare -ft __bp_install
 
 # Sets an installation string as part of our PROMPT_COMMAND to install
 # after our session has started. This allows bash-preexec to be included
