@@ -89,13 +89,21 @@ set_exit_code_and_run_precmd() {
 
   # note setting this causes BATS to mis-report the failure line when this test fails
   trap foo DEBUG
-  [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'foo'" ]
+  original_debug_trap=$(trap -p DEBUG)
+  [ "$(cut -d' ' -f3 <<< "$original_debug_trap")" == "'foo'" ]
 
   bp_install
   trap_count_snapshot=$trap_invoked_count
 
-  [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
-  [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+    # We do not modify the DEBUG trap in Bash >= 5.3
+    [ "$(trap -p DEBUG)" == "$original_debug_trap" ]
+  else
+    # We override the DEBUG trap in Bash < 5.3
+    [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
+    [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+    [[ $(declare -f __bp_original_debug_trap) == *$'\n'"    foo"$'\n'* ]] || return 1
+  fi
 
   __bp_interactive_mode # triggers the DEBUG trap
 
@@ -107,20 +115,48 @@ set_exit_code_and_run_precmd() {
   trap_invoked_count=0
   foo() { (( trap_invoked_count += 1 )); }
 
+  # constants
+  single_quote="'" single_quote_escape="'\''"
+  original_trap_command="foo && echo 'hello' > /dev/null"
+
   # note setting this causes BATS to mis-report the failure line when this test fails
-  trap "foo && echo 'hello' >/dev/null" debug
-  [ "$(trap -p DEBUG | cut -d' ' -f3-7)" == "'foo && echo '\''hello'\'' >/dev/null'" ]
+  trap "$original_trap_command" debug
+  original_debug_trap=$(trap -p DEBUG)
+  [ "$original_debug_trap" == "trap -- '${original_trap_command//$single_quote/$single_quote_escape}' DEBUG" ]
 
   bp_install
   trap_count_snapshot=$trap_invoked_count
 
-  [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
-  [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+    # We do not modify the DEBUG trap in Bash >= 5.3
+    [ "$(trap -p DEBUG)" == "$original_debug_trap" ]
+  else
+    # We override the DEBUG trap in Bash < 5.3
+    [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
+    [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+    [[ $(declare -f __bp_original_debug_trap) == *$'\n'"    $original_trap_command"$'\n'* ]] || return 1
+  fi
 
   __bp_interactive_mode # triggers the DEBUG trap
 
   # ensure the trap count is still being incremented after the trap's been overwritten
   (( trap_count_snapshot < trap_invoked_count ))
+}
+
+@test "__bp_install should preserve an existing PS0" {
+  original_PS0=${PS0-}
+
+  bp_install
+
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+    # We modify PS0 in Bash >= 5.3, but the original contents of PS0 should be
+    # preserved.
+    [ "${PS0-}" != "$original_PS0" ]
+    [[ ${PS0-} == *"$original_PS0"* ]] || return 1
+  else
+    # We do not modify PS0 in Bash < 5.3
+    [ "${PS0-}" == "$original_PS0" ]
+  fi
 }
 
 @test "__bp_sanitize_string should remove semicolons and trim space" {
