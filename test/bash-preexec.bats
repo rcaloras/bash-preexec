@@ -103,6 +103,26 @@ set_exit_code_and_run_precmd() {
   (( trap_count_snapshot < trap_invoked_count ))
 }
 
+@test "__bp_install should preserve an existing DEBUG trap containing quotes" {
+  trap_invoked_count=0
+  foo() { (( trap_invoked_count += 1 )); }
+
+  # note setting this causes BATS to mis-report the failure line when this test fails
+  trap "foo && echo 'hello' >/dev/null" debug
+  [ "$(trap -p DEBUG | cut -d' ' -f3-7)" == "'foo && echo '\''hello'\'' >/dev/null'" ]
+
+  bp_install
+  trap_count_snapshot=$trap_invoked_count
+
+  [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
+  [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+
+  __bp_interactive_mode # triggers the DEBUG trap
+
+  # ensure the trap count is still being incremented after the trap's been overwritten
+  (( trap_count_snapshot < trap_invoked_count ))
+}
+
 @test "__bp_sanitize_string should remove semicolons and trim space" {
 
     __bp_sanitize_string output "   true1;  "$'\n'
