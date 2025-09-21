@@ -1,7 +1,7 @@
 Testing `bash-preexec`
 ======================
 
-**Note on test conditions**
+### Note on test conditions
 
 When writing test conditions, use `[ ... ]` instead of `[[ ... ]]` since the
 former are supported by Bats on Bash versions before 4.1. In particular, macOS
@@ -20,3 +20,14 @@ References:
 * [Differences between `[` and `[[`](http://mywiki.wooledge.org/BashFAQ/031)
 * [Problems with `[[` in Bats](https://github.com/sstephenson/bats/issues/49)
 * [Using `|| return 1` instead of `|| false`](https://github.com/bats-core/bats-core/commit/e5695a673faad4d4d33446ed5c99d70dbfa6d8be)
+
+
+### Set variable `__bp_inside_test` to test bash-preexec
+
+By default, bash-preexec is disabled in a non-interactive shell.  However, to
+test bash-preexec in non-interactive shells, one needs to enable bash-preexec
+by setting variable `__bp_inside_test` to a non-empty string.
+
+```bash
+__bp_inside_test=yes
+```
