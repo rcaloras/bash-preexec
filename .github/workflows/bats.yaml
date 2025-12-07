@@ -3,13 +3,11 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Install Bats
-        run: |
-          sudo apt-get update
-          sudo apt-get install --assume-yes bats
+        uses: bats-core/bats-action@3.0.1
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
       - name: Run tests
         run: bats test
