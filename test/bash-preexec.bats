@@ -94,8 +94,11 @@ set_exit_code_and_run_precmd() {
   bp_install
   trap_count_snapshot=$trap_invoked_count
 
-  [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
-  [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+  if (( BASH_VERSINFO[0] < 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 3) )); then
+    # We override the DEBUG trap in Bash < 5.3
+    [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
+    [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
+  fi
 
   __bp_interactive_mode # triggers the DEBUG trap
 
@@ -326,6 +329,76 @@ set_exit_code_and_run_precmd() {
 
     run '__bp_preexec_invoke_exec'
     [ $status -eq 1 ]
+}
+
+@test "__bp_invoke_precmd_functions should be transparent for \$? and \$_" {
+  tester1() { test1_lastexit=$? test1_lastarg=$_; }
+  tester2() { test2_lastexit=$? test2_lastarg=$_; }
+  precmd_functions=(tester1 tester2)
+  trap - DEBUG # remove the Bats stack-trace trap so $_ doesn't get overwritten
+  __bp_invoke_precmd_functions 111 'vxxJlwNx9VPJDA' || true
+
+  [ "$test1_lastexit" == 111 ]
+  [ "$test1_lastarg" == 'vxxJlwNx9VPJDA' ]
+  [ "$test2_lastexit" == 111 ]
+  [ "$test2_lastarg" == 'vxxJlwNx9VPJDA' ]
+}
+
+@test "__bp_invoke_precmd_functions returns the last non-zero exit status" {
+  tester1() { return 91; }
+  tester2() { return 38; }
+  tester3() { return 0; }
+  precmd_functions=(tester1 tester2 tester3)
+  status=0
+  __bp_invoke_precmd_functions 1 'lastarg' || status=$?
+
+  [ "$status" == 38 ]
+
+  precmd_functions=(tester3)
+  status=0
+  __bp_invoke_precmd_functions 1 'lastarg' || status=$?
+
+  [ "$status" == 0 ]
+}
+
+@test "__bp_invoke_preexec_functions should be transparent for \$? and \$_" {
+  tester1() { test1_lastexit=$? test1_lastarg=$_; }
+  tester2() { test2_lastexit=$? test2_lastarg=$_; }
+  preexec_functions=(tester1 tester2)
+  trap - DEBUG # remove the Bats stack-trace trap so $_ doesn't get overwritten
+  __bp_invoke_preexec_functions 87 'ehQrzHTHtE2E7Q' 'command' || true
+
+  [ "$test1_lastexit" == 87 ]
+  [ "$test1_lastarg" == 'ehQrzHTHtE2E7Q' ]
+  [ "$test2_lastexit" == 87 ]
+  [ "$test2_lastarg" == 'ehQrzHTHtE2E7Q' ]
+}
+
+@test "__bp_invoke_preexec_functions returns the last non-zero exit status" {
+  tester1() { return 52; }
+  tester2() { return 112; }
+  tester3() { return 0; }
+  preexec_functions=(tester1 tester2 tester3)
+  status=0
+  __bp_invoke_preexec_functions 1 'lastarg' 'command' || status=$?
+
+  [ "$status" == 112 ]
+
+  preexec_functions=(tester3)
+  status=0
+  __bp_invoke_preexec_functions 1 'lastarg' 'command' || status=$?
+
+  [ "$status" == 0 ]
+}
+
+@test "__bp_invoke_preexec_functions should supply a current command in the first argument" {
+  tester1() { test1_bash_command=$1; }
+  tester2() { test2_bash_command=$1; }
+  preexec_functions=(tester1 tester2)
+  __bp_invoke_preexec_functions 1 'lastarg' 'UEVkErELArSwjA' || true
+
+  [ "$test1_bash_command" == 'UEVkErELArSwjA' ]
+  [ "$test2_bash_command" == 'UEVkErELArSwjA' ]
 }
 
 @test "in_prompt_command should detect if a command is part of PROMPT_COMMAND" {
