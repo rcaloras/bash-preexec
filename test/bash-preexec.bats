@@ -283,7 +283,7 @@ set_exit_code_and_run_precmd() {
     [ "${lines[1]}" == "fake command two" ]
 }
 
-@test "preecmd should execute multiple functions in the order added to their arrays" {
+@test "precmd should execute multiple functions in the order added to their arrays" {
     fun_1() { echo "one"; }
     fun_2() { echo "two"; }
     precmd_functions+=(fun_1)
