@@ -108,8 +108,7 @@ set_exit_code_and_run_precmd() {
   foo() { (( trap_invoked_count += 1 )); }
 
   # note setting this causes BATS to mis-report the failure line when this test fails
-  # (dummy change to check regression)
-  trap "foo && echo 'hello' >/dev/null" debug
+  trap "foo && echo 'hello' >/dev/null" DEBUG
   [ "$(trap -p DEBUG | cut -d' ' -f3-7)" == "'foo && echo '\''hello'\'' >/dev/null'" ]
 
   bp_install
