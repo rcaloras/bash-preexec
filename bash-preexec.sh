@@ -71,7 +71,7 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
-__bp_install_string='__bp_install'
+__bp_install_string='__bp_install "$_"'
 
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
@@ -143,12 +143,14 @@ __bp_interactive_mode() {
 # This function is installed as part of the PROMPT_COMMAND.
 # It will invoke any functions defined in the precmd_functions array.
 __bp_precmd_invoke_cmd() {
-    # Save the returned value from our last command, and from each process in
-    # its pipeline. Note: this MUST be the first thing done in this function.
+    # Save the returned value and the last argument from our last command, and
+    # the returned value from each process in its pipeline. Note: this MUST be
+    # the first thing done in this function.
     # BP_PIPESTATUS may be unused, ignore
     # shellcheck disable=SC2034
+    __bp_last_ret_value="$?" __bp_last_argument_prev_command="$_" \
+        BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
-    __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
     # Don't invoke precmds if we are inside an execution of an "original
     # prompt command" by another precmd execution loop. This avoids infinite
@@ -230,10 +232,8 @@ __bp_load_this_command_from_history() {
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
+    local lastarg=$_
 
-    # Save the contents of $_ so that it can be restored later on.
-    # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
-    __bp_last_argument_prev_command="${1:-}"
     # Don't invoke preexecs if we are inside of another preexec.
     if (( __bp_inside_preexec > 0 )); then
         return
@@ -273,6 +273,10 @@ __bp_preexec_invoke_exec() {
         __bp_preexec_interactive_mode=""
         return
     fi
+
+    # Save the contents of $_ so that it can be restored later on.
+    # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
+    __bp_last_argument_prev_command=$lastarg
 
     local this_command
     __bp_load_this_command_from_history || return
@@ -372,8 +376,9 @@ else
 fi
 
 __bp_install() {
+    local lastexit=$? lastarg=$_
     # Exit if we already have this installed.
-    if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
+    if [[ "${PROMPT_COMMAND[*]:-}" == *'__bp_precmd_invoke_cmd "$_"'* ]]; then
         return 1
     fi
 
@@ -393,7 +398,7 @@ __bp_install() {
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    PROMPT_COMMAND='__bp_precmd_invoke_cmd'
+    PROMPT_COMMAND='__bp_precmd_invoke_cmd "$_"'
     PROMPT_COMMAND+=${existing_prompt_command:+$'\n'$existing_prompt_command}
     if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
         PROMPT_COMMAND+=('__bp_interactive_mode')
@@ -408,6 +413,7 @@ __bp_install() {
     preexec_functions+=(preexec)
 
     # Invoke our two functions manually that were added to $PROMPT_COMMAND
+    __bp_set_ret_value "$lastexit" "$lastarg"
     __bp_precmd_invoke_cmd
     __bp_interactive_mode
 }

@@ -41,7 +41,7 @@ return_exit_code() {
 }
 
 set_exit_code_and_run_precmd() {
-  return_exit_code ${1:-0}
+  return_exit_code "${1:-0}" "${2-$_}"
   __bp_precmd_invoke_cmd
 }
 
@@ -204,7 +204,7 @@ set_exit_code_and_run_precmd() {
 
     eval_PROMPT_COMMAND
 
-    expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
@@ -215,7 +215,7 @@ set_exit_code_and_run_precmd() {
 
     eval_PROMPT_COMMAND
 
-    expected_result=$'__bp_precmd_invoke_cmd\necho before\n echo after\n__bp_interactive_mode'
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho before\n echo after\n__bp_interactive_mode'
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
@@ -287,9 +287,9 @@ set_exit_code_and_run_precmd() {
     bats_trap=$(trap -p DEBUG)
     trap DEBUG # remove the Bats stack-trace trap so $_ doesn't get overwritten
     : "last-arg"
-    __bp_preexec_invoke_exec "$_"
+    __bp_preexec_interactive_mode=1 __bp_preexec_invoke_exec "$_"
     eval "$bats_trap" # Restore trap
-    run set_exit_code_and_run_precmd
+    run set_exit_code_and_run_precmd 0 "$__bp_last_argument_prev_command"
     [ $status -eq 0 ]
     [ "$output" == "last-arg" ]
 }
