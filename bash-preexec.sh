@@ -365,17 +365,19 @@ __bp_hook_preexec_into_ps0() {
     __bp_adjust_histcontrol
 }
 
+if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+    __bp_hook_preexec_proc=__bp_hook_preexec_into_ps0
+else
+    __bp_hook_preexec_proc=__bp_hook_preexec_into_debug
+fi
+
 __bp_install() {
     # Exit if we already have this installed.
     if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
         return 1
     fi
 
-    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-        __bp_hook_preexec_into_ps0
-    else
-        __bp_hook_preexec_into_debug
-    fi
+    "$__bp_hook_preexec_proc"
 
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
@@ -421,7 +423,10 @@ declare -ft __bp_install __bp_hook_preexec_into_debug
 __bp_install_after_session_init() {
     # bash-preexec needs to modify these variables in order to work correctly
     # if it can't, just stop the installation
-    __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT PS0 || return
+    __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT || return
+    if [[ $__bp_hook_preexec_proc == '__bp_hook_preexec_into_ps0' ]]; then
+        __bp_require_not_readonly PS0 || return
+    fi
 
     local sanitized_prompt_command
     __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"

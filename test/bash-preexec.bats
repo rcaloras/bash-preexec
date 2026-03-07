@@ -95,14 +95,14 @@ set_exit_code_and_run_precmd() {
   bp_install
   trap_count_snapshot=$trap_invoked_count
 
-  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-    # We do not modify the DEBUG trap in Bash >= 5.3
-    [ "$(trap -p DEBUG)" == "$original_debug_trap" ]
-  else
-    # We override the DEBUG trap in Bash < 5.3
+  if [[ $__bp_hook_preexec_proc == '__bp_hook_preexec_into_debug' ]]; then
+    # We override the DEBUG trap with the DEBUG approach to preexec
     [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
     [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
     [[ $(declare -f __bp_original_debug_trap) == *$'\n'"    foo"$'\n'* ]] || return 1
+  else
+    # We do not modify the DEBUG trap in the other approaches
+    [ "$(trap -p DEBUG)" == "$original_debug_trap" ]
   fi
 
   __bp_interactive_mode # triggers the DEBUG trap
@@ -127,14 +127,14 @@ set_exit_code_and_run_precmd() {
   bp_install
   trap_count_snapshot=$trap_invoked_count
 
-  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-    # We do not modify the DEBUG trap in Bash >= 5.3
-    [ "$(trap -p DEBUG)" == "$original_debug_trap" ]
-  else
-    # We override the DEBUG trap in Bash < 5.3
+  if [[ $__bp_hook_preexec_proc == '__bp_hook_preexec_into_debug' ]]; then
+    # We override the DEBUG trap with the DEBUG approach to preexec
     [ "$(trap -p DEBUG | cut -d' ' -f3)" == "'__bp_preexec_invoke_exec" ]
     [[ "${preexec_functions[*]}" == *"__bp_original_debug_trap"* ]] || return 1
     [[ $(declare -f __bp_original_debug_trap) == *$'\n'"    $original_trap_command"$'\n'* ]] || return 1
+  else
+    # We do not modify the DEBUG trap in the other approaches
+    [ "$(trap -p DEBUG)" == "$original_debug_trap" ]
   fi
 
   __bp_interactive_mode # triggers the DEBUG trap
@@ -148,13 +148,13 @@ set_exit_code_and_run_precmd() {
 
   bp_install
 
-  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-    # We modify PS0 in Bash >= 5.3, but the original contents of PS0 should be
-    # preserved.
+  if [[ $__bp_hook_preexec_proc == '__bp_hook_preexec_into_ps0' ]]; then
+    # We modify PS0 with the PS0 approach to preexec, but the original contents
+    # of PS0 should be preserved.
     [ "${PS0-}" != "$original_PS0" ]
     [[ ${PS0-} == *"$original_PS0"* ]] || return 1
   else
-    # We do not modify PS0 in Bash < 5.3
+    # We do not modify PS0 in the other approaches
     [ "${PS0-}" == "$original_PS0" ]
   fi
 }
