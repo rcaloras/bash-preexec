@@ -9,7 +9,7 @@
 # Author: Ryan Caloras (ryan@bashhub.com)
 # Forked from Original Author: Glyph Lefkowitz
 #
-# V0.5.0
+# V0.6.0
 #
 
 # General Usage:
@@ -38,7 +38,7 @@
 # Make sure this is bash that's running and return otherwise.
 # Use POSIX syntax for this line:
 if [ -z "${BASH_VERSION-}" ]; then
-    return 1;
+    return 1
 fi
 
 # We only support Bash 3.1+.
@@ -76,13 +76,13 @@ __bp_install_string=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_in
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
 __bp_require_not_readonly() {
-  local var
-  for var; do
-    if ! ( unset "$var" 2> /dev/null ); then
-      echo "bash-preexec requires write access to ${var}" >&2
-      return 1
-    fi
-  done
+    local var
+    for var; do
+        if ! ( unset "$var" 2> /dev/null ); then
+            echo "bash-preexec requires write access to ${var}" >&2
+            return 1
+        fi
+    done
 }
 
 # Remove ignorespace and or replace ignoreboth from HISTCONTROL
@@ -95,7 +95,7 @@ __bp_adjust_histcontrol() {
     # Replace ignoreboth with ignoredups
     if [[ "$histcontrol" == *"ignoreboth"* ]]; then
         histcontrol="ignoredups:${histcontrol//ignoreboth}"
-    fi;
+    fi
     export HISTCONTROL="$histcontrol"
 }
 
@@ -136,7 +136,7 @@ __bp_sanitize_string() {
 # It sets a variable to indicate that the prompt was just displayed,
 # to allow the DEBUG trap to know that the next command is likely interactive.
 __bp_interactive_mode() {
-    __bp_preexec_interactive_mode="on";
+    __bp_preexec_interactive_mode="on"
 }
 
 
@@ -154,7 +154,7 @@ __bp_precmd_invoke_cmd() {
     # prompt command" by another precmd execution loop. This avoids infinite
     # recursion.
     if (( __bp_inside_precmd > 0 )); then
-      return
+        return
     fi
     local __bp_inside_precmd=1
 
@@ -211,7 +211,7 @@ __bp_preexec_invoke_exec() {
     __bp_last_argument_prev_command="${1:-}"
     # Don't invoke preexecs if we are inside of another preexec.
     if (( __bp_inside_preexec > 0 )); then
-      return
+        return
     fi
     local __bp_inside_preexec=1
 
@@ -222,9 +222,9 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
-    if [[ -n "${COMP_LINE:-}" ]]; then
-        # We're in the middle of a completer. This obviously can't be
-        # an interactively issued command.
+    if [[ -n "${COMP_POINT:-}" || -n "${READLINE_POINT:-}" ]]; then
+        # We're in the middle of a completer or a keybinding set up by "bind
+        # -x".  This obviously can't be an interactively issued command.
         return
     fi
     if [[ -z "${__bp_preexec_interactive_mode:-}" ]]; then
@@ -250,10 +250,8 @@ __bp_preexec_invoke_exec() {
     fi
 
     local this_command
-    this_command=$(
-        export LC_ALL=C
-        HISTTIMEFORMAT='' builtin history 1 | sed '1 s/^ *[0-9][0-9]*[* ] //'
-    )
+    this_command=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
+    this_command="${this_command#*[[:digit:]][* ] }"
 
     # Sanity check to make sure we have something to invoke our function with.
     if [[ -z "$this_command" ]]; then
@@ -291,20 +289,18 @@ __bp_preexec_invoke_exec() {
 __bp_install() {
     # Exit if we already have this installed.
     if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
-        return 1;
+        return 1
     fi
 
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
-    local prior_trap
-    # we can't easily do this with variable expansion. Leaving as sed command.
-    # shellcheck disable=SC2001
-    prior_trap=$(sed "s/[^']*'\(.*\)'[^']*/\1/" <<<"${__bp_trap_string:-}")
+    eval "local trap_argv=(${__bp_trap_string:-})"
+    local prior_trap=${trap_argv[2]:-}
     unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
-          '"$prior_trap"'
+            '"$prior_trap"'
         }'
         preexec_functions+=(__bp_original_debug_trap)
     fi
@@ -321,7 +317,7 @@ __bp_install() {
         # Set so debug trap will work be invoked in subshells.
         set -o functrace > /dev/null 2>&1
         shopt -s extdebug > /dev/null 2>&1
-    fi;
+    fi
 
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
@@ -371,7 +367,7 @@ __bp_install_after_session_init() {
     if [[ -n "$sanitized_prompt_command" ]]; then
         # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
         PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
-    fi;
+    fi
     # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
     PROMPT_COMMAND+=${__bp_install_string}
 }
@@ -379,4 +375,4 @@ __bp_install_after_session_init() {
 # Run our install so long as we're not delaying it.
 if [[ -z "${__bp_delay_install:-}" ]]; then
     __bp_install_after_session_init
-fi;
+fi
