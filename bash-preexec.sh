@@ -324,8 +324,10 @@ __bp_install() {
     existing_prompt_command="${PROMPT_COMMAND:-}"
     # Edge case of appending to PROMPT_COMMAND
     existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
-    existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
-    existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
+    # Remove some known no-op patterns.
+    existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}"
+    existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}"
+    existing_prompt_command="${existing_prompt_command%$'\n':}"
     __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
     if [[ "${existing_prompt_command:-:}" == ":" ]]; then
         existing_prompt_command=
