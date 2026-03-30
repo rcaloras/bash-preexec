@@ -319,25 +319,39 @@ __bp_install() {
         shopt -s extdebug > /dev/null 2>&1
     fi
 
-    local existing_prompt_command
-    # Remove setting our trap install string and sanitize the existing prompt command string
-    existing_prompt_command="${PROMPT_COMMAND:-}"
-    # Edge case of appending to PROMPT_COMMAND
-    existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
-    existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
-    existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
-    __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
-    if [[ "${existing_prompt_command:-:}" == ":" ]]; then
-        existing_prompt_command=
-    fi
-
-    # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
-    # actually entered something.
-    PROMPT_COMMAND='__bp_precmd_invoke_cmd'
-    PROMPT_COMMAND+=${existing_prompt_command:+$'\n'$existing_prompt_command}
     if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
-        PROMPT_COMMAND+=('__bp_interactive_mode')
+        local updated_prompt_command
+        updated_prompt_command=('__bp_precmd_invoke_cmd')
+        local cmd
+        for cmd in "${PROMPT_COMMAND[@]}"; do
+            cmd="${cmd//$__bp_install_string/:}" # no-op
+            cmd="${cmd//$'\n':$'\n'/$'\n'}" # remove known-token only
+            cmd="${cmd//$'\n':;/$'\n'}" # remove known-token only
+            __bp_sanitize_string cmd "$cmd"
+            if [[ "${cmd:-:}" == ":" ]]; then
+                cmd=
+            fi
+            updated_prompt_command+=("$cmd")
+        done
+        updated_prompt_command+=('__bp_interactive_mode')
+        PROMPT_COMMAND=("${updated_prompt_command[@]}")
     else
+        local existing_prompt_command
+        # Remove setting our trap install string and sanitize the existing prompt command string
+        existing_prompt_command="${PROMPT_COMMAND:-}"
+        # Edge case of appending to PROMPT_COMMAND
+        existing_prompt_command="${existing_prompt_command//$__bp_install_string/:}" # no-op
+        existing_prompt_command="${existing_prompt_command//$'\n':$'\n'/$'\n'}" # remove known-token only
+        existing_prompt_command="${existing_prompt_command//$'\n':;/$'\n'}" # remove known-token only
+        __bp_sanitize_string existing_prompt_command "$existing_prompt_command"
+        if [[ "${existing_prompt_command:-:}" == ":" ]]; then
+            existing_prompt_command=
+        fi
+
+        # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
+        # actually entered something.
+        PROMPT_COMMAND='__bp_precmd_invoke_cmd'
+        PROMPT_COMMAND+=${existing_prompt_command:+$'\n'$existing_prompt_command}
         # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
         PROMPT_COMMAND+=$'\n__bp_interactive_mode'
     fi
@@ -360,14 +374,18 @@ __bp_install_after_session_init() {
     # if it can't, just stop the installation
     __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT || return
 
-    local sanitized_prompt_command
-    __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"
-    if [[ -n "$sanitized_prompt_command" ]]; then
-        # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
-        PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        PROMPT_COMMAND+=("${__bp_install_string}")
+    else
+        local sanitized_prompt_command
+        __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"
+        if [[ -n "$sanitized_prompt_command" ]]; then
+            # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
+            PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
+        fi
+        # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
+        PROMPT_COMMAND+=${__bp_install_string}
     fi
-    # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
-    PROMPT_COMMAND+=${__bp_install_string}
 }
 
 # Run our install so long as we're not delaying it.

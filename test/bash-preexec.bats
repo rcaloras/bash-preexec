@@ -76,12 +76,39 @@ set_exit_code_and_run_precmd() {
 
   # Assert that before running, the command contains the install string, and
   # afterwards it does not
-  [[ "$PROMPT_COMMAND" == *"$__bp_install_string"* ]] || return 1
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+      [[ "${PROMPT_COMMAND[@]}" == *"$__bp_install_string"* ]] || return 1
+  else
+      [[ "$PROMPT_COMMAND" == *"$__bp_install_string"* ]] || return 1
+  fi
 
   eval_PROMPT_COMMAND
 
-  [[ "$PROMPT_COMMAND" != *"$__bp_install_string"* ]] || return 1
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+      [[ "${PROMPT_COMMAND[@]}" != *"$__bp_install_string"* ]] || return 1
+  else
+      [[ "$PROMPT_COMMAND" != *"$__bp_install_string"* ]] || return 1
+  fi
 }
+
+@test "__bp_install should remove trap logic and itself from PROMPT_COMMAND (Bash 5.1+ version)" {
+  if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+      PROMPT_COMMAND=()
+      __bp_install_after_session_init
+      PROMPT_COMMAND="$PROMPT_COMMAND; true"
+
+      # Assert that before running, the command contains the install string, and
+      # afterwards it does not
+      [[ "${PROMPT_COMMAND[@]}" == *"$__bp_install_string"* ]] || return 1
+
+      eval_PROMPT_COMMAND
+
+      [[ "${PROMPT_COMMAND[@]}" != *"$__bp_install_string"* ]] || return 1
+  else
+      skip
+  fi
+}
+
 
 @test "__bp_install should preserve an existing DEBUG trap" {
   trap_invoked_count=0
@@ -146,6 +173,11 @@ set_exit_code_and_run_precmd() {
 @test "Appending or prepending to PROMPT_COMMAND should work after bp_install_after_session_init" {
     __bp_install_after_session_init
     nl=$'\n'
+    if [[ "$PROMPT_COMMAND" == "" ]]; then
+        # On Bash 5.1+ we append to the array properly,
+        # so first element of PROMPT_COMMAND is still empty.
+        PROMPT_COMMAND="true"
+    fi
     PROMPT_COMMAND="$PROMPT_COMMAND; true"
     PROMPT_COMMAND="$PROMPT_COMMAND $nl true"
     PROMPT_COMMAND="$PROMPT_COMMAND; true"
@@ -154,6 +186,24 @@ set_exit_code_and_run_precmd() {
     PROMPT_COMMAND="true; $PROMPT_COMMAND"
     PROMPT_COMMAND="true $nl $PROMPT_COMMAND"
     eval_PROMPT_COMMAND
+}
+
+@test "Appending or prepending to PROMPT_COMMAND array should work after bp_install_after_session_init" {
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        PROMPT_COMMAND=()
+        __bp_install_after_session_init
+        nl=$'\n'
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "true")
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "$nl true")
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "true")
+        PROMPT_COMMAND=("true" "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=("true" "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=("true" "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=("true $nl" "${PROMPT_COMMAND[@]}")
+        eval_PROMPT_COMMAND
+    else
+        skip
+    fi
 }
 
 # Case where a user is appending or prepending to PROMPT_COMMAND.
@@ -168,7 +218,11 @@ set_exit_code_and_run_precmd() {
 
     eval_PROMPT_COMMAND
 
-    expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n\n__bp_interactive_mode'
+    else
+        expected_result=$'__bp_precmd_invoke_cmd\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
+    fi
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
@@ -179,7 +233,11 @@ set_exit_code_and_run_precmd() {
 
     eval_PROMPT_COMMAND
 
-    expected_result=$'__bp_precmd_invoke_cmd\necho before\n echo after\n__bp_interactive_mode'
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        expected_result=$'__bp_precmd_invoke_cmd\necho before; echo after\n\n__bp_interactive_mode'
+    else
+        expected_result=$'__bp_precmd_invoke_cmd\necho before\n echo after\n__bp_interactive_mode'
+    fi
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
@@ -192,12 +250,42 @@ set_exit_code_and_run_precmd() {
 
     precmd() { echo "inside precmd"; }
     run eval_PROMPT_COMMAND
-    [ "${lines[0]}" == "after2" ]
-    [ "${lines[1]}" == "before" ]
-    [ "${lines[2]}" == "before2" ]
-    [ "${lines[3]}" == "inside precmd" ]
-    [ "${lines[4]}" == "after" ]
-    [ "${#lines[@]}" == '5' ]
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        [ "${lines[0]}" == "after2" ]
+        [ "${lines[1]}" == "before" ]
+        [ "${lines[2]}" == "before2" ]
+        [ "${lines[3]}" == "after" ]
+        [ "${lines[4]}" == "inside precmd" ]
+        [ "${#lines[@]}" == '5' ]
+    else
+        [ "${lines[0]}" == "after2" ]
+        [ "${lines[1]}" == "before" ]
+        [ "${lines[2]}" == "before2" ]
+        [ "${lines[3]}" == "inside precmd" ]
+        [ "${lines[4]}" == "after" ]
+        [ "${#lines[@]}" == '5' ]
+    fi
+}
+
+@test "during install PROMPT_COMMAND and precmd functions should be executed each once (Bash 5.1+ PROMPT_COMMAND array)" {
+    if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
+        PROMPT_COMMAND=("echo before")
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "echo before2")
+        __bp_install_after_session_init
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "echo after")
+        PROMPT_COMMAND=("echo after2" "${PROMPT_COMMAND[@]}")
+
+        precmd() { echo "inside precmd"; }
+        run eval_PROMPT_COMMAND
+        [ "${lines[0]}" == "after2" ]
+        [ "${lines[1]}" == "before" ]
+        [ "${lines[2]}" == "before2" ]
+        [ "${lines[3]}" == "inside precmd" ]
+        [ "${lines[4]}" == "after" ]
+        [ "${#lines[@]}" == '5' ]
+    else
+        skip
+    fi
 }
 
 @test "No functions defined for preexec should simply return" {
