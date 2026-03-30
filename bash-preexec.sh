@@ -542,14 +542,18 @@ __bp_install_after_session_init() {
         __bp_require_not_readonly PS0 || return
     fi
 
-    local sanitized_prompt_command
-    __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"
-    if [[ -n "$sanitized_prompt_command" ]]; then
-        # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
-        PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
+    if __bp_use_array_prompt_command; then
+        PROMPT_COMMAND+=("${__bp_install_string}")
+    else
+        local sanitized_prompt_command
+        __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"
+        if [[ -n "$sanitized_prompt_command" ]]; then
+            # shellcheck disable=SC2178 # PROMPT_COMMAND is not an array in bash <= 5.0
+            PROMPT_COMMAND=${sanitized_prompt_command}$'\n'
+        fi
+        # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
+        PROMPT_COMMAND+=${__bp_install_string}
     fi
-    # shellcheck disable=SC2179 # PROMPT_COMMAND is not an array in bash <= 5.0
-    PROMPT_COMMAND+=${__bp_install_string}
 }
 
 # Run our install so long as we're not delaying it.

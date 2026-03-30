@@ -76,12 +76,27 @@ set_exit_code_and_run_precmd() {
 
   # Assert that before running, the command contains the install string, and
   # afterwards it does not
-  [[ "$PROMPT_COMMAND" == *"$__bp_install_string"* ]] || return 1
+  [[ "$(join_PROMPT_COMMAND)" == *"$__bp_install_string"* ]] || return 1
 
   eval_PROMPT_COMMAND
 
-  [[ "$PROMPT_COMMAND" != *"$__bp_install_string"* ]] || return 1
+  [[ "$(join_PROMPT_COMMAND)" != *"$__bp_install_string"* ]] || return 1
 }
+
+@test "__bp_install should remove trap logic and itself from modified PROMPT_COMMAND" {
+  PROMPT_COMMAND=()
+  __bp_install_after_session_init
+  PROMPT_COMMAND="$PROMPT_COMMAND; true"
+
+  # Assert that before running, the command contains the install string, and
+  # afterwards it does not
+  [[ "$(join_PROMPT_COMMAND)" == *"$__bp_install_string"* ]] || return 1
+
+  eval_PROMPT_COMMAND
+
+  [[ "$(join_PROMPT_COMMAND)" != *"$__bp_install_string"* ]] || return 1
+}
+
 
 @test "__bp_install should preserve an existing DEBUG trap" {
   trap_invoked_count=0
@@ -239,7 +254,9 @@ set_exit_code_and_run_precmd() {
 @test "Appending or prepending to PROMPT_COMMAND should work after bp_install_after_session_init" {
     __bp_install_after_session_init
     nl=$'\n'
-    PROMPT_COMMAND="$PROMPT_COMMAND; true"
+    # On Bash 5.1+ we append to the array properly,
+    # so first element of PROMPT_COMMAND may still be empty.
+    PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }true"
     PROMPT_COMMAND="$PROMPT_COMMAND $nl true"
     PROMPT_COMMAND="$PROMPT_COMMAND; true"
     PROMPT_COMMAND="true; $PROMPT_COMMAND"
@@ -247,6 +264,24 @@ set_exit_code_and_run_precmd() {
     PROMPT_COMMAND="true; $PROMPT_COMMAND"
     PROMPT_COMMAND="true $nl $PROMPT_COMMAND"
     eval_PROMPT_COMMAND
+}
+
+@test "Appending or prepending to PROMPT_COMMAND array should work after bp_install_after_session_init" {
+    if __bp_use_array_prompt_command; then
+        PROMPT_COMMAND=()
+        __bp_install_after_session_init
+        nl=$'\n'
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "true")
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "$nl true")
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "true")
+        PROMPT_COMMAND=("true" "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=("true" "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=("true" "${PROMPT_COMMAND[@]}")
+        PROMPT_COMMAND=("true $nl" "${PROMPT_COMMAND[@]}")
+        eval_PROMPT_COMMAND
+    else
+        skip
+    fi
 }
 
 # Case where a user is appending or prepending to PROMPT_COMMAND.
@@ -268,7 +303,11 @@ set_exit_code_and_run_precmd() {
 @test "Adding to PROMPT_COMMAND after with semicolon" {
     PROMPT_COMMAND="echo before"
     __bp_install_after_session_init
-    PROMPT_COMMAND="$PROMPT_COMMAND; echo after"
+    if __bp_use_array_prompt_command; then
+        PROMPT_COMMAND[${#PROMPT_COMMAND[@]}-1]+='; echo after'
+    else
+        PROMPT_COMMAND+='; echo after'
+    fi
 
     eval_PROMPT_COMMAND
 
@@ -285,12 +324,38 @@ set_exit_code_and_run_precmd() {
 
     precmd() { echo "inside precmd"; }
     run eval_PROMPT_COMMAND
+    [ "${#lines[@]}" == '5' ]
     [ "${lines[0]}" == "after2" ]
     [ "${lines[1]}" == "before" ]
     [ "${lines[2]}" == "before2" ]
-    [ "${lines[3]}" == "inside precmd" ]
-    [ "${lines[4]}" == "after" ]
-    [ "${#lines[@]}" == '5' ]
+    if __bp_use_array_prompt_command; then
+        [ "${lines[3]}" == "after" ]
+        [ "${lines[4]}" == "inside precmd" ]
+    else
+        [ "${lines[3]}" == "inside precmd" ]
+        [ "${lines[4]}" == "after" ]
+    fi
+}
+
+@test "during install PROMPT_COMMAND and precmd functions should be executed each once (Bash 5.1+ PROMPT_COMMAND array)" {
+    if __bp_use_array_prompt_command; then
+        PROMPT_COMMAND=("echo before")
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "echo before2")
+        __bp_install_after_session_init
+        PROMPT_COMMAND=("${PROMPT_COMMAND[@]}" "echo after")
+        PROMPT_COMMAND=("echo after2" "${PROMPT_COMMAND[@]}")
+
+        precmd() { echo "inside precmd"; }
+        run eval_PROMPT_COMMAND
+        [ "${#lines[@]}" == '5' ]
+        [ "${lines[0]}" == "after2" ]
+        [ "${lines[1]}" == "before" ]
+        [ "${lines[2]}" == "before2" ]
+        [ "${lines[3]}" == "inside precmd" ]
+        [ "${lines[4]}" == "after" ]
+    else
+        skip
+    fi
 }
 
 @test "No functions defined for preexec should simply return" {
