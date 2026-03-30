@@ -71,7 +71,7 @@ __bp_inside_precmd=0
 __bp_inside_preexec=0
 
 # Initial PROMPT_COMMAND string that is removed from PROMPT_COMMAND post __bp_install
-__bp_install_string=$'__bp_trap_string="$(trap -p DEBUG)"\ntrap - DEBUG\n__bp_install'
+__bp_install_string='__bp_install "$_"'
 
 # Fails if any of the given variables are readonly
 # Reference https://stackoverflow.com/a/4441178
@@ -143,12 +143,14 @@ __bp_interactive_mode() {
 # This function is installed as part of the PROMPT_COMMAND.
 # It will invoke any functions defined in the precmd_functions array.
 __bp_precmd_invoke_cmd() {
-    # Save the returned value from our last command, and from each process in
-    # its pipeline. Note: this MUST be the first thing done in this function.
+    # Save the returned value and the last argument from our last command, and
+    # the returned value from each process in its pipeline. Note: this MUST be
+    # the first thing done in this function.
     # BP_PIPESTATUS may be unused, ignore
     # shellcheck disable=SC2034
+    __bp_last_ret_value="$?" __bp_last_argument_prev_command="$_" \
+        BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
-    __bp_last_ret_value="$?" BP_PIPESTATUS=("${PIPESTATUS[@]}")
 
     # Don't invoke precmds if we are inside an execution of an "original
     # prompt command" by another precmd execution loop. This avoids infinite
@@ -157,21 +159,38 @@ __bp_precmd_invoke_cmd() {
         return
     fi
     local __bp_inside_precmd=1
+    __bp_invoke_precmd_functions "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
 
+    __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
+}
+
+# This function invokes every function defined in the "precmd_functions" array.
+# This function receives the arguments $1 and $2 for $?  and $_, respectively,
+# which will be set for each precmd function. This function returns the last
+# non-zero exit status of the hook functions. If there is no error, this
+# function returns 0.
+__bp_invoke_precmd_functions() {
+    local lastexit=$1 lastarg=$2
     # Invoke every function defined in our function array.
     local precmd_function
+    local precmd_function_ret_value
+    local precmd_ret_value=0
     for precmd_function in "${precmd_functions[@]}"; do
 
         # Only execute this function if it actually exists.
         # Test existence of functions with: declare -[Ff]
         if type -t "$precmd_function" 1>/dev/null; then
-            __bp_set_ret_value "$__bp_last_ret_value" "$__bp_last_argument_prev_command"
+            __bp_set_ret_value "$lastexit" "$lastarg"
             # Quote our function invocation to prevent issues with IFS
             "$precmd_function"
+            precmd_function_ret_value=$?
+            if [[ "$precmd_function_ret_value" != 0 ]]; then
+                precmd_ret_value="$precmd_function_ret_value"
+            fi
         fi
     done
 
-    __bp_set_ret_value "$__bp_last_ret_value"
+    __bp_set_ret_value "$precmd_ret_value"
 }
 
 # Sets a return value in $?. We may want to get access to the $? variable in our
@@ -200,15 +219,21 @@ __bp_in_prompt_command() {
     return 1
 }
 
+__bp_load_this_command_from_history() {
+    this_command=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
+    this_command="${this_command#*[[:digit:]][* ] }"
+
+    # Sanity check to make sure we have something to invoke our function with.
+    [[ -n "$this_command" ]]
+}
+
 # This function is installed as the DEBUG trap.  It is invoked before each
 # interactive prompt display.  Its purpose is to inspect the current
 # environment to attempt to detect if the current command is being invoked
 # interactively, and invoke 'preexec' if so.
 __bp_preexec_invoke_exec() {
+    local lastarg=$_
 
-    # Save the contents of $_ so that it can be restored later on.
-    # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
-    __bp_last_argument_prev_command="${1:-}"
     # Don't invoke preexecs if we are inside of another preexec.
     if (( __bp_inside_preexec > 0 )); then
         return
@@ -249,33 +274,15 @@ __bp_preexec_invoke_exec() {
         return
     fi
 
+    # Save the contents of $_ so that it can be restored later on.
+    # https://stackoverflow.com/questions/40944532/bash-preserve-in-a-debug-trap#40944702
+    __bp_last_argument_prev_command=$lastarg
+
     local this_command
-    this_command=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
-    this_command="${this_command#*[[:digit:]][* ] }"
+    __bp_load_this_command_from_history || return
 
-    # Sanity check to make sure we have something to invoke our function with.
-    if [[ -z "$this_command" ]]; then
-        return
-    fi
-
-    # Invoke every function defined in our function array.
-    local preexec_function
-    local preexec_function_ret_value
-    local preexec_ret_value=0
-    for preexec_function in "${preexec_functions[@]:-}"; do
-
-        # Only execute each function if it actually exists.
-        # Test existence of function with: declare -[fF]
-        if type -t "$preexec_function" 1>/dev/null; then
-            __bp_set_ret_value "${__bp_last_ret_value:-}"
-            # Quote our function invocation to prevent issues with IFS
-            "$preexec_function" "$this_command"
-            preexec_function_ret_value="$?"
-            if [[ "$preexec_function_ret_value" != 0 ]]; then
-                preexec_ret_value="$preexec_function_ret_value"
-            fi
-        fi
-    done
+    __bp_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
+    local preexec_ret_value=$?
 
     # Restore the last argument of the last executed command, and set the return
     # value of the DEBUG trap to be the return code of the last preexec function
@@ -286,18 +293,52 @@ __bp_preexec_invoke_exec() {
     __bp_set_ret_value "$preexec_ret_value" "$__bp_last_argument_prev_command"
 }
 
-__bp_install() {
-    # Exit if we already have this installed.
-    if [[ "${PROMPT_COMMAND[*]:-}" == *"__bp_precmd_invoke_cmd"* ]]; then
-        return 1
-    fi
+__bp_invoke_preexec_from_ps0() {
+    __bp_last_argument_prev_command="${1:-}"
 
+    local this_command
+    __bp_load_this_command_from_history || return
+
+    __bp_invoke_preexec_functions "${__bp_last_ret_value:-}" "$__bp_last_argument_prev_command" "$this_command"
+}
+
+# This function invokes every function defined in the "preexec_functions"
+# array.  This function receives the arguments $1 and $2 for $?  and $_,
+# respectively, which will be set for each preexec function.  The third
+# argument $3 specifies the user command that is going to be executed
+# (corresponding to BASH_COMMAND in the DEBUG trap).  This function returns the
+# last non-zero exit status from the preexec functions.  If there is no error,
+# this function returns `0`.
+__bp_invoke_preexec_functions() {
+    local lastexit=$1 lastarg=$2 this_command=$3
+    local preexec_function
+    local preexec_function_ret_value
+    local preexec_ret_value=0
+    for preexec_function in "${preexec_functions[@]:-}"; do
+
+        # Only execute each function if it actually exists.
+        # Test existence of function with: declare -[fF]
+        if type -t "$preexec_function" 1>/dev/null; then
+            __bp_set_ret_value "$lastexit" "$lastarg"
+            # Quote our function invocation to prevent issues with IFS
+            "$preexec_function" "$this_command"
+            preexec_function_ret_value="$?"
+            if [[ "$preexec_function_ret_value" != 0 ]]; then
+                preexec_ret_value="$preexec_function_ret_value"
+            fi
+        fi
+    done
+    __bp_set_ret_value "$preexec_ret_value"
+}
+
+__bp_hook_preexec_into_debug() {
+    local trap_string
+    trap_string=$(trap -p DEBUG)
     trap '__bp_preexec_invoke_exec "$_"' DEBUG
 
     # Preserve any prior DEBUG trap as a preexec function
-    eval "local trap_argv=(${__bp_trap_string:-})"
+    eval "local trap_argv=(${trap_string:-})"
     local prior_trap=${trap_argv[2]:-}
-    unset __bp_trap_string
     if [[ -n "$prior_trap" ]]; then
         eval '__bp_original_debug_trap() {
             '"$prior_trap"'
@@ -318,6 +359,30 @@ __bp_install() {
         set -o functrace > /dev/null 2>&1
         shopt -s extdebug > /dev/null 2>&1
     fi
+}
+
+__bp_hook_preexec_into_ps0() {
+    # shellcheck disable=SC2016
+    PS0=${PS0-}'${ __bp_invoke_preexec_from_ps0 "$_" >&2; }'
+
+    # Adjust our HISTCONTROL Variable if needed.
+    __bp_adjust_histcontrol
+}
+
+if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
+    __bp_hook_preexec_proc=__bp_hook_preexec_into_ps0
+else
+    __bp_hook_preexec_proc=__bp_hook_preexec_into_debug
+fi
+
+__bp_install() {
+    local lastexit=$? lastarg=$_
+    # Exit if we already have this installed.
+    if [[ "${PROMPT_COMMAND[*]:-}" == *'__bp_precmd_invoke_cmd "$_"'* ]]; then
+        return 1
+    fi
+
+    "$__bp_hook_preexec_proc"
 
     local existing_prompt_command
     # Remove setting our trap install string and sanitize the existing prompt command string
@@ -333,7 +398,7 @@ __bp_install() {
 
     # Install our hooks in PROMPT_COMMAND to allow our trap to know when we've
     # actually entered something.
-    PROMPT_COMMAND='__bp_precmd_invoke_cmd'
+    PROMPT_COMMAND='__bp_precmd_invoke_cmd "$_"'
     PROMPT_COMMAND+=${existing_prompt_command:+$'\n'$existing_prompt_command}
     if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
         PROMPT_COMMAND+=('__bp_interactive_mode')
@@ -348,9 +413,15 @@ __bp_install() {
     preexec_functions+=(preexec)
 
     # Invoke our two functions manually that were added to $PROMPT_COMMAND
+    __bp_set_ret_value "$lastexit" "$lastarg"
     __bp_precmd_invoke_cmd
     __bp_interactive_mode
 }
+
+# Note: We need to add the "trace" attribute to these functions so that "trap
+# ... DEBUG" inside "__bp_install" and "__bp_hook_preexec_into_debug" takes
+# effect even when there is an existing DEBUG trap.
+declare -ft __bp_install __bp_hook_preexec_into_debug
 
 # Sets an installation string as part of our PROMPT_COMMAND to install
 # after our session has started. This allows bash-preexec to be included
@@ -359,6 +430,9 @@ __bp_install_after_session_init() {
     # bash-preexec needs to modify these variables in order to work correctly
     # if it can't, just stop the installation
     __bp_require_not_readonly PROMPT_COMMAND HISTCONTROL HISTTIMEFORMAT || return
+    if [[ $__bp_hook_preexec_proc == '__bp_hook_preexec_into_ps0' ]]; then
+        __bp_require_not_readonly PS0 || return
+    fi
 
     local sanitized_prompt_command
     __bp_sanitize_string sanitized_prompt_command "${PROMPT_COMMAND:-}"
