@@ -137,19 +137,22 @@ __bp_sanitize_string() {
     # We specify newline character through the variable `nl' because $'\n'
     # inside "${var//...}" is treated literally as "\$'\\n'" when `extquote' is
     # unset (shopt -u extquote). (Note: Bash 5.2's extquote seems to be buggy.)
-    local tmp sp=$' \t' nl=$'\n'
+    local tmp nl=$'\n'
     while
-        # Quoting parameter expansions $nl in PAT of ${var//PAT/REP} is
+        # Note: Quoting parameter expansions $nl in PAT of ${var//PAT/REP} is
         # required by shellcheck.  On the other hand, we should not quote the
         # parameter expansions $nl in REP because the quotes will remain in the
         # replaced result with `shopt -s compat42'.
-        tmp="${sanitized//[";$nl"]*(["$sp"]):*(["$sp"])[";$nl"]/$nl}"
+        # Note: We use ?(+([[:blank:]])) instead of *([[:blank:]]) to work
+        # around a bug of Bash 3.2 that *(...) is not properly processed as
+        # extglob at the beginning of the pattern in ${var//pat/rep}.
+        tmp="${sanitized//?(+([[:blank:]]))[";$nl"]*([[:blank:]]):*([[:blank:]])[";$nl"]*([[:blank:]])/$nl}"
         [[ "$tmp" != "$sanitized" ]]
     do
         sanitized="$tmp"
     done
-    sanitized="${sanitized#:*(["$sp"])[";$nl"]}"
-    sanitized="${sanitized%[";$nl"]*(["$sp"]):}"
+    sanitized="${sanitized#:*([[:blank:]])[";$nl"]}"
+    sanitized="${sanitized%[";$nl"]*([[:blank:]]):}"
     __bp_trim_whitespace sanitized "$sanitized"
     sanitized=${sanitized%;}
     sanitized=${sanitized#;}

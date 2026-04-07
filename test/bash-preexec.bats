@@ -225,7 +225,7 @@ set_exit_code_and_run_precmd() {
     [ "$output" == "echo USER9" ]
 
     __bp_sanitize_string output $'echo USER10 ; :\n: ; echo USER11'
-    expected_result=$'echo USER10 \n echo USER11'
+    expected_result=$'echo USER10\necho USER11'
     [ "$output" == "$expected_result" ]
 }
 
@@ -256,12 +256,12 @@ set_exit_code_and_run_precmd() {
     PROMPT_COMMAND="echo before"
     PROMPT_COMMAND="$PROMPT_COMMAND; echo before2"
     __bp_install_after_session_init
-    PROMPT_COMMAND="$PROMPT_COMMAND"$'\n echo after'
+    PROMPT_COMMAND="$PROMPT_COMMAND"$'\necho after'
     PROMPT_COMMAND="echo after2; $PROMPT_COMMAND;"
 
     eval_PROMPT_COMMAND
 
-    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho after2; echo before; echo before2\n echo after\n__bp_interactive_mode'
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho after2; echo before; echo before2\necho after\n__bp_interactive_mode'
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
@@ -272,7 +272,7 @@ set_exit_code_and_run_precmd() {
 
     eval_PROMPT_COMMAND
 
-    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho before\n echo after\n__bp_interactive_mode'
+    expected_result=$'__bp_precmd_invoke_cmd "$_"\necho before\necho after\n__bp_interactive_mode'
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
