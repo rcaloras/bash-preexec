@@ -234,7 +234,7 @@ __bp_precmd_invoke_cmd() {
 
     # Check and adjust PROMPT_COMMAND to make sure that PROMPT_COMMAND has the
     # form "__bp_precmd_invoke_cmd; ...; __bp_interactive_mode"
-    if ! __bp_install_prompt_command && [[ ! "${BATS_VERSION-}" ]] && (( ${#FUNCNAME[*]} > 1 )); then
+    if ! __bp_install_prompt_command && [[ ! "${BATS_VERSION-}" ]] && (( ${#FUNCNAME[*]} > 1 )) && [[ "${FUNCNAME[1]}" != '__bp_install' ]]; then
         # When PROMPT_COMMAND is already properly set up but this function is
         # not called from the top level, the current function call is probably
         # performed via PROMPT_COMMAND saved by another framework (e.g.,
