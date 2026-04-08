@@ -183,6 +183,17 @@ set_exit_code_and_run_precmd() {
     [ "$(join_PROMPT_COMMAND)" == "$expected_result" ]
 }
 
+@test "__bp_install_prompt_command should be skipped when already set up" {
+    unset -v PROMPT_COMMAND
+    PROMPT_COMMAND=""
+
+    # First install should succeed
+    __bp_install_prompt_command || return 1
+
+    # Second install should skip processing and return 1
+    ! __bp_install_prompt_command || return 1
+}
+
 @test "__bp_sanitize_string should remove semicolons and trim space" {
 
     __bp_sanitize_string output "   true1;  "$'\n'
