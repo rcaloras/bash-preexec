@@ -508,7 +508,7 @@ __bp_install_prompt_command() {
     # shellcheck disable=SC2016
     local prologue='__bp_precmd_invoke_cmd "$_"'
     local epilogue='__bp_interactive_mode'
-    if [[ "$prompt_command" == "$prologue"$'\n'*$'\n'"$epilogue" ]]; then
+    if [[ "$prompt_command" == "$prologue"$'\n'* && "$prompt_command" == *$'\n'"$epilogue" ]]; then
         return 1
     fi
 
