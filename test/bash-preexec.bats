@@ -452,6 +452,26 @@ set_exit_code_and_run_precmd() {
     [ "${lines[1]}" == "fake command two" ]
 }
 
+@test "preexec_functions before initialization should be preserved" {
+    fun_1() { reply_1="$1 one"; }
+    fun_2() { reply_2="$1 two"; }
+
+    # preexec registered before initialization
+    preexec_functions+=(fun_1)
+
+    # Initialization
+    __bp_preexec_interactive_mode="" bp_install
+
+    # preexec registered after initialization
+    preexec_functions+=(fun_2)
+
+    reply_1=""
+    reply_2=""
+    __bp_invoke_preexec_from_ps0 || return 1
+    [ "$reply_1" == "fake command one" ]
+    [ "$reply_2" == "fake command two" ]
+}
+
 @test "precmd should execute multiple functions in the order added to their arrays" {
     fun_1() { echo "one"; }
     fun_2() { echo "two"; }

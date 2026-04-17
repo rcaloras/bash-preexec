@@ -107,9 +107,11 @@ __bp_adjust_histcontrol() {
 # and unset as soon as the trace hook is run.
 __bp_preexec_interactive_mode=""
 
-# These arrays are used to add functions to be run before, or after, prompts.
-declare -a precmd_functions
-declare -a preexec_functions
+# These global arrays are used to add functions to be run before, or after,
+# prompts.  Note that Bash < 4.2 does not have the "-g" option of the "declare"
+# builtin.  We actually do not need to explicitly initialize these arrays.
+#declare -ga precmd_functions
+#declare -ga preexec_functions
 
 # Trims leading and trailing whitespace from $2 and writes it to the variable
 # name passed as $1
