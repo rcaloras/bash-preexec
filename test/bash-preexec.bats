@@ -587,24 +587,170 @@ set_exit_code_and_run_precmd() {
 
 }
 
-@test "__bp_adjust_histcontrol should remove ignorespace and ignoreboth" {
+@test "__bp_adjust_histcontrol shows nothing when \$HISTCONTROL is untouched" {
+    HISTCONTROL="ignoredups"
+    run '__bp_adjust_histcontrol'
+    [ "$output" == '' ]
+}
 
-    # Should remove ignorespace
+@test "__bp_adjust_histcontrol changes ignorespace to bash-preexec_ignorespace" {
+    # Should not touch `ignoredups`.
+    HISTCONTROL="selection_flag1:ignoredups:selection_flag2:"
+    __bp_adjust_histcontrol
+    [ "$HISTCONTROL" == "selection_flag1:ignoredups:selection_flag2:" ]
+
+    # Should replace ignorespace on its own.
+    HISTCONTROL="ignorespace"
+    __bp_adjust_histcontrol
+    [ "$HISTCONTROL" == "bash-preexec_ignorespace" ]
+
+    # Should replace ignorespace.
     HISTCONTROL="ignorespace:ignoredups:*"
     __bp_adjust_histcontrol
-    [ "$HISTCONTROL" == ":ignoredups:*" ]
+    [ "$HISTCONTROL" == "bash-preexec_ignorespace:ignoredups:*" ]
 
-    # Should remove ignoreboth and replace it with ignoredups
+    # Should replace all ignorespace instances.
+    HISTCONTROL="ignorespace:ignoredups:something_else:ignorespace:more_stuff"
+    __bp_adjust_histcontrol
+    [ "$HISTCONTROL" == "bash-preexec_ignorespace:ignoredups:something_else:bash-preexec_ignorespace:more_stuff" ]
+
+}
+
+@test "__bp_adjust_histcontrol changes ignoreboth to ignoredups:bash-preexec_ignorespace" {
+    # Should replace ignoreboth on its own.
     HISTCONTROL="ignoreboth"
     __bp_adjust_histcontrol
-    [ "$HISTCONTROL" == "ignoredups:" ]
+    [ "$HISTCONTROL" == "ignoredups:bash-preexec_ignorespace" ]
 
-    # Handle a few inputs
-    HISTCONTROL="ignoreboth:ignorespace:some_thing_else"
+    # Should replace ignoreboth.
+    HISTCONTROL="ignoreboth:more_flags"
     __bp_adjust_histcontrol
-    echo "$HISTCONTROL"
-    [ "$HISTCONTROL" == "ignoredups:::some_thing_else" ]
+    [ "$HISTCONTROL" == "ignoredups:bash-preexec_ignorespace:more_flags" ]
 
+    # Should replace all ignoreboth instances.
+    HISTCONTROL="ignoreboth:something_else:ignoreboth:even_more_stuff"
+    __bp_adjust_histcontrol
+    [ "$HISTCONTROL" == "ignoredups:bash-preexec_ignorespace:something_else:ignoredups:bash-preexec_ignorespace:even_more_stuff" ]
+
+    # Should replace all ignoreboth and ignorespace instances.
+    HISTCONTROL="ignoreboth:something_else:ignorespace:more_stuff"
+    __bp_adjust_histcontrol
+    [ "$HISTCONTROL" == "ignoredups:bash-preexec_ignorespace:something_else:bash-preexec_ignorespace:more_stuff" ]
+
+    # Should replace all ignoreboth instances.
+    HISTCONTROL="ignoreboth:ignoredups:something_else:ignoreboth:more_stuff"
+    __bp_adjust_histcontrol
+    [ "$HISTCONTROL" == "ignoredups:bash-preexec_ignorespace:ignoredups:something_else:ignoredups:bash-preexec_ignorespace:more_stuff" ]
+
+}
+
+run_bp_load_this_command_from_history_and_print_it() {
+    local this_command
+    __bp_load_this_command_from_history
+    local status=$?
+    printf '%s\n' "$this_command"
+    return $status
+}
+
+@test "__bp_load_this_command_from_history: HISTCONTROL with no ignore" {
+    local command1="this command is in the history"
+    history -s "$command1"
+
+    run run_bp_load_this_command_from_history_and_print_it
+    [ $status -eq 0 ]
+    [ "$output" == "$command1" ]
+}
+
+run_bp_load_this_command_from_history_and_print_BP_EMPTY_LAST_COMMAND_ACK() {
+    local this_command
+    __bp_load_this_command_from_history
+    local status=$?
+    printf 'BP_EMPTY_LAST_COMMAND_ACK: %s\n' "$BP_EMPTY_LAST_COMMAND_ACK"
+    return $status
+}
+
+@test "__bp_load_this_command_from_history: HISTCONTROL with ignorespace shows a warning" {
+    HISTCONTROL="ignorespace"
+
+    local command1="this command is in the history"
+    history -s "$command1"
+
+    run run_bp_load_this_command_from_history_and_print_BP_EMPTY_LAST_COMMAND_ACK
+    [ $status -eq 0 ]
+    [[ "$output" =~ ^'bash-preexec: WARNING: HISTCONTROL contains "ignorespace"' ]] || return 1
+    [[ "$output" =~ 'BP_EMPTY_LAST_COMMAND_ACK: yes'$ ]] || return 1
+}
+
+run_bp_load_this_command_from_history_twice() {
+    __bp_load_this_command_from_history && __bp_load_this_command_from_history
+}
+
+@test "__bp_load_this_command_from_history: HISTCONTROL with ignorespace shows only one warning" {
+    HISTCONTROL="ignorespace"
+
+    local command1="this command is in the history"
+    history -s "$command1"
+
+    run run_bp_load_this_command_from_history_twice
+    [ $status -eq 0 ]
+    [[ "$output" =~ ^'bash-preexec: WARNING: ' ]] || return 1
+    [[ ! ( "$output" =~ ^'bash-preexec: WARNING: '.*'bash-preexec: WARNING' ) ]] || return 1
+}
+
+@test "__bp_load_this_command_from_history: HISTCONTROL with ignorespace shows no warning if acked" {
+    BP_EMPTY_LAST_COMMAND_ACK=yes
+    HISTCONTROL="ignorespace"
+
+    local command1="this command is in the history"
+    history -s "$command1"
+
+    run __bp_load_this_command_from_history
+    [ $status -eq 0 ]
+    [ "$output" == '' ]
+}
+
+run_bp_load_this_command_from_history_and_print_it_and_the_last_history_entry() {
+    local this_command
+    __bp_load_this_command_from_history
+    local status=$?
+
+    local history_last
+    history_last=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
+    history_last="${history_last#*[[:digit:]][* ] }"
+
+    printf '%s\n' "$this_command"
+    printf '%s\n' "$history_last"
+    return $status
+}
+
+@test "__bp_load_this_command_from_history: HISTCONTROL with bash-preexec_ignorespace" {
+    HISTCONTROL="bash-preexec_ignorespace"
+
+    local command1="this command is in the history"
+    history -s "$command1"
+
+    run run_bp_load_this_command_from_history_and_print_it_and_the_last_history_entry
+    [ $status -eq 0 ]
+    [ "$output" == "$command1"$'\n'"$command1" ]
+
+    local command2=" this should not be in the history"
+    history -s "$command2"
+
+    run run_bp_load_this_command_from_history_and_print_it_and_the_last_history_entry
+    [ $status -eq 0 ]
+    [ "$output" == "$command2"$'\n'"$command1" ]
+}
+
+@test "__bp_load_this_command_from_history: HISTCONTROL with ignorespace" {
+    BP_EMPTY_LAST_COMMAND_ACK=yes
+    HISTCONTROL="ignorespace"
+
+    local command1="this command is in the history"
+    history -s "$command1"
+
+    run run_bp_load_this_command_from_history_and_print_it
+    [ $status -eq 0 ]
+    [ "$output" == "" ]
 }
 
 @test "preexec should respect HISTTIMEFORMAT" {
@@ -647,4 +793,46 @@ a multiline string'" ]
     run '__bp_preexec_invoke_exec'
     [ $status -eq 0 ]
     [ "$output" == '-n' ]
+}
+
+run_bp_preexec_invoke_exec_print_last_history_entry() {
+    __bp_preexec_invoke_exec
+    local status=$?
+
+    local history_last
+    history_last=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
+    history_last="${history_last#*[[:digit:]][* ] }"
+
+    printf '%s\n' "$history_last"
+    return $status
+}
+
+@test "When HISTCONTROL contains ignorespace the ignorespace functionality is honoured" {
+    # This test covers functionality that is mostly already covered by
+    # __bp_adjust_histcontrol and __bp_load_this_command_from_history tests
+    # above.  But it represents a more complete, almost an end-to-end scenario,
+    # making sure that small components interact correctly as a whole.
+
+    preexec_functions+=(test_preexec_echo)
+    HISTCONTROL=ignorespace:ignoreboth
+
+    __bp_adjust_histcontrol
+
+    [ "$HISTCONTROL" == "bash-preexec_ignorespace:ignoredups:bash-preexec_ignorespace" ]
+
+    __bp_interactive_mode
+
+    command1="this command is in the history"
+
+    history -s "$command1"
+    run run_bp_preexec_invoke_exec_print_last_history_entry
+    [ $status == 0 ]
+    [ "$output" == "$command1"$'\n'"$command1" ]
+
+    command2=" this should not be in the history"
+
+    history -s "$command2"
+    run run_bp_preexec_invoke_exec_print_last_history_entry
+    [ $status == 0 ]
+    [ "$output" == "$command2"$'\n'"$command1" ]
 }

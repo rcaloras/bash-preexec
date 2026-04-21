@@ -86,18 +86,29 @@ __bp_require_not_readonly() {
     done
 }
 
-# Remove ignorespace and or replace ignoreboth from HISTCONTROL
-# so we can accurately invoke preexec with a command from our
-# history even if it starts with a space.
+# Replace "ignorespace" and/or "ignoreboth" in HISTCONTROL with
+# "bash-preexec_ignorespace" and "ignoredups:bash-preexec_ignorespace"
+# respectively.  This is necessary in order for the preexec hook to be able to
+# read the last command from the history, even if it starts with a space.  We
+# then remove commands that start with a space from the history in
+# __bp_load_this_command_from_history, if "bash-preexec_ignorespace" is part of
+# HISTCONTROL.
 __bp_adjust_histcontrol() {
     local histcontrol
-    histcontrol="${HISTCONTROL:-}"
-    histcontrol="${histcontrol//ignorespace}"
-    # Replace ignoreboth with ignoredups
-    if [[ "$histcontrol" == *"ignoreboth"* ]]; then
-        histcontrol="ignoredups:${histcontrol//ignoreboth}"
-    fi
-    export HISTCONTROL="$histcontrol"
+    histcontrol=${HISTCONTROL:-}
+
+    # We might need to delete some of the elements.  It is easier when each
+    # elements has it's own set of separators.
+    histcontrol=":${histcontrol//:/::}:"
+
+    histcontrol=${histcontrol//:ignorespace:/:bash-preexec_ignorespace:}
+    histcontrol=${histcontrol//:ignoreboth:/:ignoredups::bash-preexec_ignorespace:}
+
+    histcontrol=${histcontrol//::/:}
+    histcontrol=${histcontrol#:}
+    histcontrol=${histcontrol%:}
+
+    export HISTCONTROL=$histcontrol
 }
 
 # This variable describes whether we are currently in "interactive mode";
@@ -310,9 +321,69 @@ __bp_in_prompt_command() {
     return 1
 }
 
+# Loads the last executed command from the command history, assiging it into the
+# $this_command variable.
+#
+# If $HISTCONTROL contains "ignorespace", $this_command will be set to an empty
+# string.
+#
+# If $HISTCONTROL contains "bash-preexec_ignorespace", removes the extacted
+# command from the command history, if the command starts with a space.  This
+# simulates the built-in "ignorespace" behavior.
 __bp_load_this_command_from_history() {
-    this_command=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
-    this_command="${this_command#*[[:digit:]][* ] }"
+    local histcontrol
+    histcontrol=${HISTCONTROL:-}
+
+    local ignorespace=''
+
+    # If ignorespace is in $HISTCONTROL, we do not know if the last command in
+    # the history is actually the last executed command.  But it is up to the 
+    if [[ "$histcontrol" =~ (^|:)ignorespace(:|$) \
+        || "$histcontrol" =~ (^|:)ignoreboth(:|$) ]];
+    then
+        if [[ -z "${BP_EMPTY_LAST_COMMAND_ACK:-}" ]]; then
+            cat <<EOM >&2
+bash-preexec: WARNING: HISTCONTROL contains "ignorespace", or "ignoreboth"
+    making it impossible to reliably detect the last executed command.
+    bash-preexec will invoke hook functions with an empty command.
+
+    If this is intentional, set BP_EMPTY_LAST_COMMAND_ACK to avoid this warning:
+
+export BP_EMPTY_LAST_COMMAND_ACK=yes
+
+    You can also replace "ignorespace" with "bash-preexec_ignorespace", to
+    workaround this restriction.  See "\`HISTCONTROL\` interaction" in the
+    bash-preexec documentation.
+EOM
+        fi
+
+        export BP_EMPTY_LAST_COMMAND_ACK=yes
+
+        this_command=''
+        return 0
+    elif [[ "$histcontrol" =~ (^|:)bash-preexec_ignorespace(:|$) ]]; then
+        ignorespace=yes
+    fi
+
+    local history_last_entry
+    history_last_entry=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
+    this_command="${history_last_entry#*[[:digit:]][* ] }"
+
+    # "bash-preexec_ignorespace" in HISTCONTROL indicates we have removed
+    # "ignorespace" from HISTCONTROL, and we need to remove commands that start
+    # with a space from the history ourselves.
+    #
+    # With bash 5.0 or above, we could have just ran
+    #
+    #   builtin history -d -1
+    #
+    # Negative indices for `-d` are not supported before 5.0, so we compute the
+    # length of the history list explicit, to delete the last entry.
+    if [[ -n "$ignorespace" && "$this_command" == " "* ]]; then
+        if [[ "$history_last_entry" =~ ^[[:blank:]]*([0-9]+) ]]; then
+            builtin history -d "${BASH_REMATCH[1]}"
+        fi
+    fi
 
     # Sanity check to make sure we have something to invoke our function with.
     [[ -n "$this_command" ]]
