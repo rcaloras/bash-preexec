@@ -395,6 +395,41 @@ set_exit_code_and_run_precmd() {
     [ "$output" == "251" ]
 }
 
+@test "__bp_precmd_invoke_cmd should preserve \$? when taking the reentry-guard early return" {
+    # When (( __bp_inside_precmd > 0 )) is true, __bp_precmd_invoke_cmd returns
+    # early without reaching the trailing __bp_set_ret_value call.  Without the
+    # explicit set_ret_value on this path, the bare `return` propagates the
+    # exit status of the (( ... )) test (always 0 when the condition is true),
+    # clobbering the user's actual last exit status.
+    run_with_reentry_guard() {
+        local __bp_inside_precmd=1
+        return_exit_code 7
+        __bp_precmd_invoke_cmd
+    }
+    run run_with_reentry_guard
+    [ $status -eq 7 ]
+}
+
+@test "__bp_precmd_invoke_cmd should preserve \$? when taking the nested-call-frame early return" {
+    # Once PROMPT_COMMAND already contains our hooks,
+    # __bp_install_prompt_command returns 1, and if __bp_precmd_invoke_cmd is
+    # invoked from inside another function (FUNCNAME depth > 1), the function
+    # takes the "another framework wrapped our PROMPT_COMMAND" early
+    # return. Without the explicit set_ret_value on this path the function used
+    # to `return 0` and clobbered the caller's last exit status.
+    #
+    # The path's own guard short-circuits when BATS_VERSION is set so bats's
+    # own scaffolding doesn't trip it; we clear BATS_VERSION inside the nested
+    # call to actually exercise the path.
+    bp_install
+    run_nested() {
+        BATS_VERSION="" return_exit_code 7
+        BATS_VERSION="" __bp_precmd_invoke_cmd
+    }
+    run run_nested
+    [ $status -eq 7 ]
+}
+
 @test "precmd should set \$BP_PIPESTATUS to the previous \$PIPESTATUS" {
   echo_pipestatus() {
     echo "${BP_PIPESTATUS[*]}"
