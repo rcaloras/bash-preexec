@@ -10,8 +10,9 @@ setup() {
 
 # Evaluates all the elements of PROMPT_COMMAND
 eval_PROMPT_COMMAND() {
-  local prompt_command
+  local lastexit=$? lastarg=$_ prompt_command
   for prompt_command in "${PROMPT_COMMAND[@]}"; do
+    __bp_set_ret_value "$lastexit" "$lastarg"
     eval "$prompt_command"
   done
 }
@@ -428,6 +429,42 @@ set_exit_code_and_run_precmd() {
     }
     run run_nested
     [ $status -eq 7 ]
+}
+
+@test "__bp_precmd_invoke_cmd installed in PROMPT_COMMAND should preserve \$? and \$_" {
+    unset -v PROMPT_COMMAND
+    PROMPT_COMMAND='save_lastexit=$? save_lastarg=$_'
+
+    __bp_install_prompt_command
+    precmd_functions=(precmd)
+
+    # Note: The DEBUG and ERR traps set by Bats overwrite $_, so we cannot
+    # properly test the values of $_.  We modify the DEBUG trap of Bats so that
+    # it properly preserves the value of $_.  When we are not sure that the
+    # current DEBUG trap preserves $_, we skip the test.  See
+    # https://github.com/bats-core/bats-core/pull/1208 for details.
+    if trap -p DEBUG | grep -qF \''bats_debug_trap "$BASH_SOURCE"'\'; then
+        bats_debug_trap_modified=1
+        trap -- 'bats_debug_trap "$BASH_SOURCE" "$_"' DEBUG
+    fi
+    if ! trap -p DEBUG | grep -qF ' "$_"'\'; then
+        # If Bats' DEBUG trap does not preserve $_, and if it is not
+        # successfully updated to include "$_", we skip the test.
+        skip
+    elif [[ ${bats_debug_trap_modified-} && BASH_VERSINFO[0] -le 3 ]]; then
+        # When Bats' DEBUG trap does not care about $_, even if we modify the
+        # DEBUG trap, an issue still seems to remain in Bash 3.2.  Therefore,
+        # we skip the test in Bash 3.2 when Bat's DEBUG trap is modified.
+        skip
+    else
+        run_prompt_command() {
+            __bp_set_ret_value '77' 'lastarg!bzBtcQDLoM'
+            eval_PROMPT_COMMAND
+        }
+        run_prompt_command || true
+        [ "$save_lastexit" == '77' ]
+        [ "$save_lastarg" == 'lastarg!bzBtcQDLoM' ]
+    fi
 }
 
 @test "precmd should set \$BP_PIPESTATUS to the previous \$PIPESTATUS" {
