@@ -232,7 +232,7 @@ __bp_precmd_invoke_cmd() {
     # prompt command" by another precmd execution loop. This avoids infinite
     # recursion.
     if (( __bp_inside_precmd > 0 )); then
-        return
+        return "$__bp_last_ret_value"
     fi
 
     # Check and adjust PROMPT_COMMAND to make sure that PROMPT_COMMAND has the
@@ -245,7 +245,7 @@ __bp_precmd_invoke_cmd() {
             # (e.g., starship). In this case, we do not need to invoke precmd
             # because it is supposed to be already processed by the top-level
             # __bp_precmd_invoke_cmd.
-            return 0
+            return "$__bp_last_ret_value"
         fi
     fi
 

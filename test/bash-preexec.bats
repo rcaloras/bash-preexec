@@ -10,8 +10,9 @@ setup() {
 
 # Evaluates all the elements of PROMPT_COMMAND
 eval_PROMPT_COMMAND() {
-  local prompt_command
+  local lastexit=$? lastarg=$_ prompt_command
   for prompt_command in "${PROMPT_COMMAND[@]}"; do
+    __bp_set_ret_value "$lastexit" "$lastarg"
     eval "$prompt_command"
   done
 }
@@ -393,6 +394,77 @@ set_exit_code_and_run_precmd() {
     run set_exit_code_and_run_precmd 251
     [ $status -eq 251 ]
     [ "$output" == "251" ]
+}
+
+@test "__bp_precmd_invoke_cmd should preserve \$? when taking the reentry-guard early return" {
+    # When (( __bp_inside_precmd > 0 )) is true, __bp_precmd_invoke_cmd returns
+    # early without reaching the trailing __bp_set_ret_value call.  Without the
+    # explicit set_ret_value on this path, the bare `return` propagates the
+    # exit status of the (( ... )) test (always 0 when the condition is true),
+    # clobbering the user's actual last exit status.
+    run_with_reentry_guard() {
+        local __bp_inside_precmd=1
+        return_exit_code 7
+        __bp_precmd_invoke_cmd
+    }
+    run run_with_reentry_guard
+    [ $status -eq 7 ]
+}
+
+@test "__bp_precmd_invoke_cmd should preserve \$? when taking the nested-call-frame early return" {
+    # Once PROMPT_COMMAND already contains our hooks,
+    # __bp_install_prompt_command returns 1, and if __bp_precmd_invoke_cmd is
+    # invoked from inside another function (FUNCNAME depth > 1), the function
+    # takes the "another framework wrapped our PROMPT_COMMAND" early
+    # return. Without the explicit set_ret_value on this path the function used
+    # to `return 0` and clobbered the caller's last exit status.
+    #
+    # The path's own guard short-circuits when BATS_VERSION is set so bats's
+    # own scaffolding doesn't trip it; we clear BATS_VERSION inside the nested
+    # call to actually exercise the path.
+    bp_install
+    run_nested() {
+        BATS_VERSION="" return_exit_code 7
+        BATS_VERSION="" __bp_precmd_invoke_cmd
+    }
+    run run_nested
+    [ $status -eq 7 ]
+}
+
+@test "__bp_precmd_invoke_cmd installed in PROMPT_COMMAND should preserve \$? and \$_" {
+    unset -v PROMPT_COMMAND
+    PROMPT_COMMAND='save_lastexit=$? save_lastarg=$_'
+
+    __bp_install_prompt_command
+    precmd_functions=(precmd)
+
+    # Note: The DEBUG and ERR traps set by Bats overwrite $_, so we cannot
+    # properly test the values of $_.  We modify the DEBUG trap of Bats so that
+    # it properly preserves the value of $_.  When we are not sure that the
+    # current DEBUG trap preserves $_, we skip the test.  See
+    # https://github.com/bats-core/bats-core/pull/1208 for details.
+    if trap -p DEBUG | grep -qF \''bats_debug_trap "$BASH_SOURCE"'\'; then
+        bats_debug_trap_modified=1
+        trap -- 'bats_debug_trap "$BASH_SOURCE" "$_"' DEBUG
+    fi
+    if ! trap -p DEBUG | grep -qF ' "$_"'\'; then
+        # If Bats' DEBUG trap does not preserve $_, and if it is not
+        # successfully updated to include "$_", we skip the test.
+        skip
+    elif [[ ${bats_debug_trap_modified-} && BASH_VERSINFO[0] -le 3 ]]; then
+        # When Bats' DEBUG trap does not care about $_, even if we modify the
+        # DEBUG trap, an issue still seems to remain in Bash 3.2.  Therefore,
+        # we skip the test in Bash 3.2 when Bat's DEBUG trap is modified.
+        skip
+    else
+        run_prompt_command() {
+            __bp_set_ret_value '77' 'lastarg!bzBtcQDLoM'
+            eval_PROMPT_COMMAND
+        }
+        run_prompt_command || true
+        [ "$save_lastexit" == '77' ]
+        [ "$save_lastarg" == 'lastarg!bzBtcQDLoM' ]
+    fi
 }
 
 @test "precmd should set \$BP_PIPESTATUS to the previous \$PIPESTATUS" {
