@@ -1,5 +1,11 @@
 #!/usr/bin/env bats
 
+# This variable tells bash-preexec.sh that it is loaded for testing purposes.
+# bash-preexec.sh is intended to be used in interactive shell sessions, so it
+# is disabled in non-interactive shells by default.  However, it still needs to
+# be loaded in non-interactive shells for the Bats tests.
+__bp_inside_test=yes
+
 setup() {
   PROMPT_COMMAND=''        # in case the invoking shell has set this
   history -s fake command  # preexec requires there be some history
