@@ -350,6 +350,19 @@ __bp_preexec_invoke_exec() {
         # prompt set the title instead of me.
         return
     else
+        # READLINE_POINT does not exist before Bash 4.0 (macOS /bin/bash is
+        # 3.2.57), so the READLINE_POINT check above cannot detect "bind -x"
+        # handlers there.
+        # Fall back on a 3.x tell: "bind -x" runs its handler while the
+        # terminal is still in readline's raw mode (icanon off), whereas
+        # accepted command lines execute only after readline restores
+        # canonical mode.  Return *before* clearing
+        # __bp_preexec_interactive_mode so the next real command still
+        # invokes preexec.
+        if (( BASH_VERSINFO[0] < 4 )) &&
+                [[ $(command stty -a 2>/dev/null </dev/tty) == *-icanon* ]]; then
+            return
+        fi
         # If we're in a subshell, then the prompt won't be re-displayed to put
         # us back into interactive mode, so let's not set the variable back.
         # In other words, if you have a subshell like
