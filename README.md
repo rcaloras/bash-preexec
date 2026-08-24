@@ -30,6 +30,8 @@ curl https://raw.githubusercontent.com/rcaloras/bash-preexec/master/bash-preexec
 echo '[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh' >> ~/.bashrc
 ```
 
+NOTE: this script may change your `HISTCONTROL` value by replacing `ignorespace` with `bash-preexec_ignorespace` or replacing `ignoreboth` with `ignoredups:bash-preexec_ignorespace`.  See [`HISTCONTROL` interaction](#histcontrol-interaction) for details.
+
 ## Usage
 Two functions **preexec** and **precmd** can now be defined and they'll be automatically invoked by bash-preexec if they exist.
 
@@ -90,6 +92,35 @@ bash-preexec does not support invoking preexec() for subshells by default. It mu
 export __bp_enable_subshells="true"
 ```
 This is disabled by default due to buggy situations related to to `functrace` and Bash's `DEBUG trap`. See [Issue #25](https://github.com/rcaloras/bash-preexec/issues/25)
+
+## `HISTCONTROL` interaction
+
+In order to be able to provide the last command text to the `preexec` hook, this
+script uses the command history. It reads the last command from the list of the
+executed commands.  If your `HISTCONTROL` contains `ignorespace` (or
+`ignoreboth`), commands that start with a space are not added into the command
+history. When the pre-exec hook is invoked, it can not tell if the last value
+read from the command history is actually the command executed, or if the last
+executed command was hidden, and the command history contains an older command.
+
+To solve this problem, when bash-preexec is loaded, it will check for
+`ignorespace` and `ignoreboth` values in the `HISTCONTROL` variable and replace
+them with `bash-preexec_ignorespace` and `ignoredups:bash-preexec_ignorespace`,
+respectively. It will also show a note once, that this substitution has been
+performed, unless you also set `BP_HISTCONTROL_ACK` to a non-empty value.
+
+When the preexec hook is invoked, there are 3 possibilities now:
+1. `HISTCONTROL` contains `ignorespace` or `ignoreboth`. In this case
+   bash-preexec can not reliably determine the last executed command. The hook
+   will show a notice once, and will be executed with an empty last command.
+   You can avoid the notice completely if you set `BP_EMPTY_LAST_COMMAND_ACK`.
+2. `HISTCONTROL` contains `bash-preexec_ignorespace`. In this case the hook will
+   read the last command from the command history and will remove it from the
+   history if it is prefixed with a whitespace. The hook will be executed with
+   the command text, even if it is a whitespace prefixed command.
+3. `HISTCONTROL` does not contain `ignorespace`, `ignoreboth`, or
+   `bash-preexec_ignorespace`. In this case the hook will read the last command
+   from the command history and run the hook with the last command.
 
 ## Library authors
 If you want to detect bash-preexec in your library (for example, to add hooks to `preexec_functions` when available), use the Bash variable `bash_preexec_imported`:
