@@ -8,7 +8,7 @@ Bash-Preexec
 
 <a href="https://bashhub.com" target="_blank"><img src="https://bashhub.com/static/web/images/bashhub-logo.png" alt="Bashhub Logo" width="200"></a>
 
-This project is currently being used in production by [Bashhub](https://github.com/rcaloras/bashhub-client), [iTerm2](https://github.com/gnachman/iTerm2), and [Ghostty](https://ghostty.org/). Hype!
+This project is currently being used in production by [Bashhub](https://github.com/rcaloras/bashhub-client), [iTerm2](https://github.com/gnachman/iTerm2), [Ghostty](https://ghostty.org/), [WezTerm](https://github.com/wezterm/wezterm), and [Atuin](https://github.com/atuinsh/atuin). Hype!
 
 ## Quick Start
 ```bash
